@@ -1,0 +1,4 @@
+usr/lib/python3/*-packages/xapian/*.so
+usr/lib/python3/*-packages/xapian/*.py
+usr/share/doc/xapian-bindings/python3/html usr/share/doc/python3-xapian
+usr/share/doc/xapian-bindings/python3/examples/*.py usr/share/doc/python3-xapian/examples

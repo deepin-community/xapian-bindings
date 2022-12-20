@@ -1,0 +1,11 @@
+Source: xapian-bindings
+Section: libs
+Priority: optional
+Maintainer: Olly Betts <olly@survex.com>
+Build-Depends: @BUILD_DEPS@ debhelper-compat (= 12)
+@XS_RUBY_VERSIONS@
+Standards-Version: 4.5.1
+Homepage: https://xapian.org/
+Rules-Requires-Root: no
+Vcs-Browser: https://salsa.debian.org/olly/xapian-bindings
+Vcs-git: https://salsa.debian.org/olly/xapian-bindings.git

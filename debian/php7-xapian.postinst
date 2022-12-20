@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+# Enable our module on first install.
+case $1 in
+configure)
+  if [ -e /usr/lib/php/php-maintscript-helper ] ; then
+    . /usr/lib/php/php-maintscript-helper
+    php_invoke enmod ALL ALL xapian
+  fi ;;
+esac
+
+#DEBHELPER#
+
+exit 0

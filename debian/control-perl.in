@@ -1,0 +1,20 @@
+
+Package: libxapian-perl
+Section: perl
+Architecture: any
+Depends: ${perl:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Suggests: xapian-doc
+Description: Perl bindings for the Xapian search library
+ The Xapian search engine library is a highly adaptable toolkit which allows
+ developers to easily add advanced indexing and search facilities to their own
+ applications.  It implements the probabilistic model of information retrieval,
+ and provides facilities for performing ranked free-text searches, relevance
+ feedback, phrase searching, boolean searching, stemming, and simultaneous
+ update and searching.  It is highly scalable, and is capable of working with
+ collections containing hundreds of millions of documents.
+ .
+ The Xapian Perl bindings provide an interface to the Xapian library from the
+ Perl programming language, allowing both indexing and retrieval operations.
+ .
+ This package provides the Xapian module, which is intended to replace the
+ older Search::Xapian module.

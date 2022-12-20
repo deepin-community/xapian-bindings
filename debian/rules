@@ -1,0 +1,448 @@
+#!/usr/bin/make -f
+#
+# Copyright (C) 2004,2005,2006 Lemur Consulting Ltd
+# Copyright (C) 2006-2021 Olly Betts
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+
+# Codename we're building packages for.  For backported packages, put the
+# codename (e.g. wheezy or precise) in debian/codename.  If that file doesn't
+# exist, the default is sid.
+CODENAME := $(shell cat debian/codename 2>/dev/null||echo sid)
+
+# Version without the "-N" suffix.
+XAPIAN_VERSION := $(shell sed 's/.*(\([^-+]*\)\([-+].*\)*).*/\1/;q' debian/changelog)
+
+# The next incompatible version - i.e. the first release of the next release
+# branch.  So for XAPIAN_VERSION "1.0.<n>", this should be "1.1.0".
+XAPIAN_VERSION_CEILING := $(shell echo '$(XAPIAN_VERSION)'|awk -F. '{print $$1"."$$2+1".0"}')
+
+BUILD_DEPS :=
+
+dh_with :=
+
+# PHP is disabled by default due to incompatibility of GPL and PHP licence.
+#
+# python (i.e. Python 2) is disable by default due to python2 removal.
+#
+# perl is currently disabled by default as in 1.4.x these bindings are still
+# experimental and Search::Xapian is packaged separately.
+DEFAULT_LANGUAGES := java python3 ruby tcl
+LANGUAGES := $(shell cat debian/bindings-to-package 2>/dev/null || echo '$(DEFAULT_LANGUAGES)')
+
+ifneq ($(findstring java, $(LANGUAGES)), )
+export JAVA_HOME=/usr/lib/jvm/default-java
+BUILD_DEPS += javahelper, default-jdk, fastjar,
+dh_with += --with javahelper
+endif
+
+ifneq ($(findstring perl, $(LANGUAGES)), )
+# POD tests currently fail upstream so don't enable for now.
+# export TEST_POD=1
+BUILD_DEPS += libtest-pod-perl, perl,
+BUILD_PERL := 1
+endif
+
+# Use filter instead of findstring so we only match against whole words
+# (in particular, we don't want to match "php7").  Allow "php" or "php5"
+# - "php" is the documented name, but we used to check with "findstring"
+# here, so "php5" will always have worked too.
+ifneq ($(filter php php5, $(LANGUAGES)), )
+BUILD_PHP5 := 1
+# Build depends for PHP5.  We need the -cli package so we can run "make check"
+# on the bindings and to get the phpapi version we need to depend on.
+BUILD_DEPS += php5-dev, php5-cli,
+endif
+
+ifneq ($(filter php7, $(LANGUAGES)), )
+BUILD_PHP7 := 1
+PHP7_VERSIONS ?= $(shell /usr/sbin/phpquery -V)
+# Build depends for PHP7.  We need the -cli package so we can run "make check"
+# on the bindings and to get the phpapi version we need to depend on.
+#
+# Only the first % in the replacement part is substituted, so we need to do
+# this in two goes.  It might seem that php-all-dev makes the versioned
+# phpN-dev dependencies unnecessary, but sadly the description is misleading
+# and it apparently deliberately only pulls a single phpN-dev.  We could just
+# build for that single version, but there appears to be no way to pull in the
+# corresponding php-cli version, so given we have to mess with versions here
+# it's actually simpler to do this.
+BUILD_DEPS += $(PHP7_VERSIONS:%=php%-dev,) $(PHP7_VERSIONS:%=php%-cli,)
+endif
+
+XS_RUBY_VERSIONS := X-Dummy-Ruby: Ruby bindings not being packaged
+ifneq ($(findstring ruby, $(LANGUAGES)), )
+# xapian-bindings 1.3.6 dropped support for Ruby < 2.1, so skip packaging the
+# ruby bindings for codenames which didn't have Ruby >= 2.1.
+ifeq ($(findstring .$(CODENAME)., .precise.trusty.squeeze.wheezy.), )
+XS_RUBY_VERSIONS := XS-Ruby-Versions: all
+rubylibdir := vendorlibdir
+rubyarchdir := vendorarchdir
+# More recent versions all have the ruby-all-dev and ruby packages.
+BUILD_DEPS += ruby-all-dev, ruby,
+# Ruby 2.2 unbundled unit/test.
+BUILD_DEPS += ruby-test-unit,
+RUBY_VERSIONS := $(shell ruby -rruby_debian_dev -e 'print RubyDebianDev::RUBY_CONFIG_VERSION.values.join(" ")')
+RUBY_LATEST_VERSION := $(shell ruby -rruby_debian_dev -e 'print RubyDebianDev::RUBY_CONFIG_VERSION.values[-1]')
+endif
+endif
+
+# Use filter instead of findstring so we only match against whole words
+# (in particular, we don't want to match "python3").
+ifneq ($(filter python, $(LANGUAGES)), )
+# The python2 versions to build for:
+PYTHON_VERSIONS := $(shell pyversions -s)
+
+BUILD_DEPS += dh-python, python, python-all-dev (>= 2.6.6-3~), python-sphinx,
+dh_with += --with python2
+endif
+
+ifneq ($(filter python3, $(LANGUAGES)), )
+# The python3 versions to build for:
+PYTHON3_VERSIONS := $(shell py3versions -s)
+ifeq ($(filter python, $(LANGUAGES)), )
+# Need dh-python for python and python3 bindings, but only list it once when
+# building both.
+BUILD_DEPS += dh-python,
+endif
+BUILD_DEPS += python3, python3-all-dev, python3-sphinx,
+dh_with += --with python3
+endif
+
+ifneq ($(findstring tcl, $(LANGUAGES)), )
+# Build depends for Tcl.  We use Tcl's stubs mechanism, so the built
+# bindings will work with any Tcl version from 8.0.6 upwards, whichever
+# version they were built against.
+#
+# The "tcl-dev" dependency package pulls in the package for the current
+# preferred version.
+BUILD_DEPS += tcl-dev,# NB Trailing ',' required here!
+BUILD_TCL := 1
+endif
+
+confflags := $(shell dpkg-buildflags --export=configure)
+
+export DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+export DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+ifeq ($(DEB_BUILD_GNU_TYPE), $(DEB_HOST_GNU_TYPE))
+    confflags += --build $(DEB_HOST_GNU_TYPE)
+else
+    confflags += --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
+endif
+
+# Handle DEB_BUILD_OPTIONS.  Note that dh_strip handles "nostrip" for us,
+# dpkg-buildflags handles "noopt", and dh_auto_test handles "nocheck".
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    MAKEFLAGS += -j$(NUMJOBS)
+endif
+
+# We need a versioned build dependency on libxapian-dev.
+# NB Trailing ',' required here!
+BUILD_DEPS += \
+	libxapian-dev (>= $(XAPIAN_VERSION)), \
+	libxapian-dev (<< $(XAPIAN_VERSION_CEILING)),
+
+commonconfflags := \
+	$(confflags) \
+	--prefix=/usr \
+	--sysconfdir=/etc
+
+# With GCC3 and later this won't make a huge difference, but it'll save
+# a bit of time and diskspace while building.
+commonconfflags += --disable-dependency-tracking
+
+%:
+	dh $@ $(dh_with)
+
+debian/control: maint
+
+maintclean: clean
+	rm -f debian/control
+
+maint:
+	rm -f debian/control.tmp
+	sed -e 's/@BUILD_DEPS@/$(BUILD_DEPS)/g' \
+	    -e 's/@XS_RUBY_VERSIONS@/$(XS_RUBY_VERSIONS)/g' \
+	    < debian/control.in > debian/control.tmp
+ifneq ($(findstring java, $(LANGUAGES)), )
+	cat debian/control-java.in >> debian/control.tmp
+endif
+ifeq ($(BUILD_TCL), 1)
+	cat debian/control-tcl.in >> debian/control.tmp
+endif
+ifeq ($(BUILD_PERL), 1)
+	cat debian/control-perl.in >> debian/control.tmp
+endif
+ifneq ($(PYTHON_VERSIONS), )
+	cat debian/control-python.in >> debian/control.tmp
+endif
+ifneq ($(PYTHON3_VERSIONS), )
+	cat debian/control-python3.in >> debian/control.tmp
+endif
+ifeq ($(BUILD_PHP5), 1)
+	sed "s/@PHP_VERSION@/5/g" debian/control-php.in >> debian/control.tmp
+endif
+ifeq ($(BUILD_PHP7), 1)
+	sed "s/@PHP_VERSION@/7/g" debian/control-php.in >> debian/control.tmp
+endif
+ifneq ($(RUBY_VERSIONS), )
+	cat debian/control-ruby.in >> debian/control.tmp
+endif
+	mv debian/control.tmp debian/control
+
+override_dh_auto_configure:
+ifeq ($(BUILD_PERL), 1)
+	mkdir -p debian/build/perl
+	cd debian/build/perl && ../../../configure $(commonconfflags) \
+	    --with-perl \
+	    PERL_ARCH=`perl -MConfig -e 'print $$Config{installvendorarch}'` \
+	    PERL_LIB=`perl -MConfig -e 'print $$Config{installvendorlib}'`
+endif
+
+	for python in $(PYTHON_VERSIONS); do \
+	    set -e; \
+	    mkdir -p debian/build/$$python; \
+	    cd debian/build/$$python; \
+	    ../../../configure $(commonconfflags) --with-python \
+		PYTHON=/usr/bin/$$python; \
+	    cd ../../..; \
+	done
+
+	for python in $(PYTHON3_VERSIONS); do \
+	    set -e; \
+	    mkdir -p debian/build/$$python; \
+	    cd debian/build/$$python; \
+	    ../../../configure $(commonconfflags) --with-python3 \
+		PYTHON3=/usr/bin/$$python; \
+	    cd ../../..; \
+	done
+
+ifeq ($(BUILD_PHP5), 1)
+	mkdir -p debian/build/php5
+	cd debian/build/php5 && ../../../configure $(commonconfflags) \
+	    --with-php PHP_CONFIG=/usr/bin/php-config5
+endif
+
+ifeq ($(BUILD_PHP7), 1)
+	for v in $(PHP7_VERSIONS); do \
+	    set -e; \
+	    mkdir -p debian/build/php$$v; \
+	    cd debian/build/php$$v; \
+	    ../../../configure $(commonconfflags) \
+		--with-php7 PHP_CONFIG7=/usr/bin/php-config$$v; \
+	    cd ../../..; \
+	done
+endif
+
+	for v in $(RUBY_VERSIONS); do \
+	    set -e; \
+	    mkdir -p debian/build/ruby$$v; \
+	    cd debian/build/ruby$$v; \
+	    RUBY=/usr/bin/ruby$$v; \
+	    ../../../configure $(commonconfflags) --with-ruby \
+		--docdir=/usr/share/doc/xapian-bindings-ruby$$v \
+		RUBY=$$RUBY \
+		RUBY_LIB=`$$RUBY -rrbconfig -e 'puts RbConfig::CONFIG["$(rubylibdir)"]'` \
+		RUBY_LIB_ARCH=`$$RUBY -rrbconfig -e 'puts RbConfig::CONFIG["$(rubyarchdir)"]'`; \
+	    cd ../../..; \
+	done
+
+ifeq ($(BUILD_TCL), 1)
+	mkdir -p debian/build/tcl
+	cd debian/build/tcl && ../../../configure $(commonconfflags) \
+	    --with-tcl TCL_LIB=/usr/lib/tcltk
+endif
+
+ifneq ($(findstring java, $(LANGUAGES)), )
+	mkdir -p debian/build/java
+	cd debian/build/java && ../../../configure $(commonconfflags) --with-java
+endif
+
+override_dh_auto_build:
+ifeq ($(BUILD_PERL), 1)
+	$(MAKE) -C debian/build/perl
+endif
+	for python in $(PYTHON_VERSIONS) $(PYTHON3_VERSIONS); do \
+	    set -e; \
+	    $(MAKE) -C debian/build/$$python ; \
+	done
+ifeq ($(BUILD_PHP5), 1)
+	$(MAKE) -C debian/build/php5
+endif
+ifeq ($(BUILD_PHP7), 1)
+	for v in $(PHP7_VERSIONS); do \
+	    set -e; \
+	    $(MAKE) -C debian/build/php$$v; \
+	done
+endif
+	for v in $(RUBY_VERSIONS); do \
+	    set -e; \
+	    $(MAKE) -C debian/build/ruby$$v ; \
+	done
+ifeq ($(BUILD_TCL), 1)
+	$(MAKE) -C debian/build/tcl
+endif
+ifneq ($(findstring java, $(LANGUAGES)), )
+	$(MAKE) -C debian/build/java
+endif
+
+MAKE_CHECK := $(MAKE) check VERBOSE=1
+
+override_dh_auto_test:
+ifeq ($(BUILD_PERL), 1)
+	$(MAKE_CHECK) -C debian/build/perl
+endif
+	for python in $(PYTHON_VERSIONS); do \
+	    set -e; \
+	    cp python/*test*.py debian/build/$$python/python ; \
+	    $(MAKE_CHECK) -C debian/build/$$python ; \
+	done
+	for python in $(PYTHON3_VERSIONS); do \
+	    set -e; \
+	    cp python3/*test*.py debian/build/$$python/python3 ; \
+	    $(MAKE_CHECK) -C debian/build/$$python ; \
+	done
+ifeq ($(BUILD_PHP5), 1)
+	$(MAKE_CHECK) -C debian/build/php5
+endif
+ifeq ($(BUILD_PHP7), 1)
+	for v in $(PHP7_VERSIONS); do \
+	    set -e; \
+	    $(MAKE_CHECK) -C debian/build/php$$v ; \
+	done
+endif
+	for v in $(RUBY_VERSIONS); do \
+	    set -e; \
+	    $(MAKE_CHECK) -C debian/build/ruby$$v ; \
+	done
+ifeq ($(BUILD_TCL), 1)
+	$(MAKE_CHECK) -C debian/build/tcl
+endif
+ifneq ($(findstring java, $(LANGUAGES)), )
+	$(MAKE_CHECK) -C debian/build/java
+endif
+
+override_dh_auto_install:
+ifeq ($(BUILD_PERL), 1)
+	$(MAKE) -C debian/build/perl DESTDIR=$(CURDIR)/debian/tmp install
+endif
+
+	# Install the files under 'debian/tmp'.
+	for python in $(PYTHON_VERSIONS) $(PYTHON3_VERSIONS); do \
+	    set -e; \
+	    $(MAKE) -C debian/build/$$python DESTDIR=$(CURDIR)/debian/tmp install; \
+	done
+
+ifeq ($(BUILD_PHP5), 1)
+	# Install xapian.php in /usr/share/php as that's on the default
+	# include path.
+	$(MAKE) -C debian/build/php5 DESTDIR=$(CURDIR)/debian/tmp \
+	    phpincdir=/usr/share/php install
+	# Install upstream xapian.php as /usr/share/php/_xapian-5.php, and
+	# install a wrapper script as xapian.php which will include the wrapper
+	# for the appropriate PHP version.  PHP7's xapian.php is renamed via
+	# dpkg-divert by our preinst maintainer script if both bindings are
+	# installed together (unhelpfully /usr/share/php is used by both major
+	# versions).
+	mv debian/tmp/usr/share/php/xapian.php debian/tmp/usr/share/php/_xapian-5.php
+	install -m 644 debian/xapian-wrapper.php debian/tmp/usr/share/php/xapian.php
+	install -d -m 755 debian/tmp/etc/php5/conf.d
+	install -m 644 debian/php-xapian.ini debian/tmp/etc/php5/conf.d/xapian.ini
+endif
+
+ifeq ($(BUILD_PHP7), 1)
+	# If we're building for multiple PHP7 minor versions, xapian.php will
+	# be the same for all of them so it doesn't matter that the loop below
+	# will install them over the top of each other.
+	for v in $(PHP7_VERSIONS); do \
+	    set -e; \
+	    $(MAKE) -C debian/build/php$$v DESTDIR=$(CURDIR)/debian/tmp \
+		phpincdir=/usr/share/php install ; \
+		install -d -m 755 debian/tmp/etc/php/$$v/mods-available ; \
+	    install -m 644 debian/php-xapian.ini \
+		debian/tmp/etc/php/$$v/mods-available/xapian.ini ; \
+	done
+endif
+
+ifneq ($(RUBY_VERSIONS), )
+	for v in $(RUBY_VERSIONS); do \
+	    set -e; \
+	    $(MAKE) -C debian/build/ruby$$v DESTDIR=$(CURDIR)/debian/tmp install; \
+	done
+	# `created.rid` contains a timestamp making the build non-reproducible.
+	# It doesn't seem to be useful to install, so just delete it.
+	rm -f debian/tmp/usr/share/doc/xapian-bindings-ruby*/ruby/rdocs/created.rid
+	# We only need one xapian.rb for ruby-xapian, and it should be the same
+	# for all versions, so if present, check that the older versions are
+	# the same as the latest, then throw them away.  Also, delete the older
+	# versions of the docs - the latest docs are installed by
+	# ruby-xapian.install.
+	rb=debian/tmp`/usr/bin/ruby$(RUBY_LATEST_VERSION) -rrbconfig -e 'puts RbConfig::CONFIG["$(rubylibdir)"]'`/xapian.rb; \
+	for v in $(RUBY_VERSIONS); do \
+	    if [ "$$v" != "$(RUBY_LATEST_VERSION)" ] ; then \
+		set -e; \
+		rb_old=debian/tmp`/usr/bin/ruby$$v -rrbconfig -e 'puts RbConfig::CONFIG["$(rubylibdir)"]'`/xapian.rb; \
+		diff "$$rb_old" "$$rb"; \
+		rm -rf "$$rb_old" debian/tmp/usr/share/doc/xapian-bindings-ruby$$v; \
+	    fi; \
+	done; \
+	mv "$$rb" debian/tmp/usr/lib/ruby/vendor_ruby
+endif
+
+ifeq ($(BUILD_TCL), 1)
+	$(MAKE) -C debian/build/tcl DESTDIR=$(CURDIR)/debian/tmp install
+endif
+
+ifneq ($(findstring java, $(LANGUAGES)), )
+	$(MAKE) -C debian/build/java DESTDIR=$(CURDIR)/debian/tmp install \
+	    jnidir='/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH)/jni'
+endif
+
+	# Reads the '*.install' files to decide where to install everything.
+	dh_install --sourcedir=debian/tmp
+
+override_dh_missing:
+	dh_missing --exclude=.pyc --fail-missing
+
+override_dh_gencontrol:
+ifeq ($(BUILD_PHP5), 1)
+	echo "php5:Depends=phpapi-`/usr/bin/php-config5 --phpapi`, php5-common" >> debian/php5-xapian.substvars
+endif
+
+ifeq ($(BUILD_PHP7), 1)
+	perl -E 'say "php7:Depends=".join("|", map{ chomp($$x=`/usr/bin/php-config$$_ --phpapi`); "phpapi-$$x" } @ARGV).", ".join("|", map{ "php$$_-common" } @ARGV)' \
+	    $(PHP7_VERSIONS) >> debian/php7-xapian.substvars
+endif
+
+ifneq ($(RUBY_VERSIONS), )
+	# The module(s) are linked against libruby2.x but use none of its
+	# symbols, so there's no dependency generated.  That's unhelpful for
+	# users and for transitions (https://bugs.debian.org/816775) so
+	# generate a suitable dependency.
+	#
+	# If RUBY_VERSIONS is 2.1 2.2 2.3, Depends: libruby2.3|libruby2.1 |libruby2.2
+	echo "ruby:Depends=libruby$(lastword $(RUBY_VERSIONS))$(wordlist 1, $(shell expr $(words $(RUBY_VERSIONS)) - 1), $(RUBY_VERSIONS:%=|libruby%))" \
+	    >> debian/ruby-xapian.substvars
+endif
+
+	dh_gencontrol
+
+.PHONY: maint maintclean

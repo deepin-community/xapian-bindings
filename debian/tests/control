@@ -1,0 +1,11 @@
+Test-Command: python3 -c 'import xapian'
+Depends: python3-xapian
+
+Test-Command: ruby -e 'require "xapian"'
+Depends: ruby-xapian
+
+Test-Command: echo 'package require xapian 1.4.0'|tclsh
+Depends: tclxapian
+
+Test-Command: echo 'import org.xapian.*;' > tmp.java && javac -cp /usr/share/java/xapian.jar tmp.java
+Depends: libxapian-java, default-jdk

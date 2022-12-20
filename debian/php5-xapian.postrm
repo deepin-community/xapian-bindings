@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+case $1 in
+remove|abort-install|disappear)
+  dpkg-divert --package php5-xapian --divert /usr/share/php/xapian-7.php --remove --rename /usr/share/php/xapian.php
+  ;;
+esac
+
+#DEBHELPER#
+
+exit 0

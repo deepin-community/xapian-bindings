@@ -1,0 +1,64 @@
+
+Package: libxapian-java
+Architecture: all
+Section: java
+Depends: libxapian-jni (>= ${source:Version}),
+ libxapian-jni (<< ${source:Version}.~),
+ ${java:Depends}, ${misc:Depends}
+Recommends: ${java:Recommends}
+Multi-Arch: foreign
+Description: Xapian search engine interface for Java
+ The Xapian search engine library is a highly adaptable toolkit which allows
+ developers to easily add advanced indexing and search facilities to their own
+ applications.  It implements the probabilistic model of information retrieval,
+ and provides facilities for performing ranked free-text searches, relevance
+ feedback, phrase searching, boolean searching, stemming, and simultaneous
+ update and searching.  It is highly scalable, and is capable of working with
+ collections containing hundreds of millions of documents.
+ .
+ The Xapian Java bindings provide an interface to the Xapian library from
+ Java, allowing both indexing and retrieval operations.
+ .
+ This package contains the architecture-independent part of the Xapian Java
+ bindings.
+
+Package: libxapian-jni
+Architecture: any
+Section: java
+Depends: ${java:Depends}, ${shlibs:Depends}, ${misc:Depends}
+Recommends: ${java:Recommends}
+Multi-Arch: same
+Description: Xapian search engine interface for Java (JNI library)
+ The Xapian search engine library is a highly adaptable toolkit which allows
+ developers to easily add advanced indexing and search facilities to their own
+ applications.  It implements the probabilistic model of information retrieval,
+ and provides facilities for performing ranked free-text searches, relevance
+ feedback, phrase searching, boolean searching, stemming, and simultaneous
+ update and searching.  It is highly scalable, and is capable of working with
+ collections containing hundreds of millions of documents.
+ .
+ The Xapian Java bindings provide an interface to the Xapian library from
+ Java, allowing both indexing and retrieval operations.
+ .
+ This package contains the architecture-dependent part of the Xapian Java
+ bindings.
+
+Package: libxapian-java-doc
+Architecture: all
+Section: doc
+Depends: ${java:Depends}, ${misc:Depends}
+Recommends: ${java:Recommends}
+Multi-Arch: foreign
+Description: Xapian search engine interface for Java (documentation)
+ The Xapian search engine library is a highly adaptable toolkit which allows
+ developers to easily add advanced indexing and search facilities to their own
+ applications.  It implements the probabilistic model of information retrieval,
+ and provides facilities for performing ranked free-text searches, relevance
+ feedback, phrase searching, boolean searching, stemming, and simultaneous
+ update and searching.  It is highly scalable, and is capable of working with
+ collections containing hundreds of millions of documents.
+ .
+ The Xapian Java bindings provide an interface to the Xapian library from
+ Java, allowing both indexing and retrieval operations.
+ .
+ This package contains the documentation for the Xapian Java bindings.
