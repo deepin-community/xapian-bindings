@@ -5,9 +5,9 @@ include ../generic/generic.mk
 ## Test programs to be run
 TESTS = smoketest.lua
 AM_TESTS_ENVIRONMENT = \
-	LUA_CPATH='.libs/?$(LUA_SO)' ;\
+	LUA_CPATH='$(_libs)/?$(LUA_SO)' ;\
 	export LUA_CPATH ;
-LOG_COMPILER = $(OSX_SIP_HACK_ENV) $(LUA)
+LOG_COMPILER = $(MACOS_SIP_HACK_ENV) $(LUA)
 
 installcheck-local:
 	$(MAKE) check AM_TESTS_ENVIRONMENT=
@@ -32,11 +32,10 @@ install-data-hook:
 uninstall-local:
 	rm -f $(DESTDIR)$(lualibdir)/xapian$(LUA_SO)
 
-AM_CPPFLAGS = @LUA_CPPFLAGS@
-AM_CXXFLAGS = @SWIG_CXXFLAGS@ $(XAPIAN_CXXFLAGS)
+AM_CXXFLAGS = @SWIG_CXXFLAGS@ $(XAPIAN_CXXFLAGS) $(LUA_CFLAGS)
 xapian_la_LDFLAGS = -avoid-version -module -shrext "$(LUA_SO)" $(NO_UNDEFINED)
 nodist_xapian_la_SOURCES = xapian_wrap.cc
-xapian_la_LIBADD = $(XAPIAN_LIBS)
+xapian_la_LIBADD = $(XAPIAN_LIBS) $(LUA_LIBS)
 
 SWIG_GENERATED = xapian_wrap.cc
 

@@ -1,8 +1,50 @@
-xapian-bindings (1.4.18-deepin1) unstable; urgency=medium
+xapian-bindings (1.4.25-1) unstable; urgency=medium
 
-  * Rebuild
+  * New upstream release:
+    + debian/control.in: Add pkgconf to Build-Depends, needed since upstream
+      1.4.24.
+  * debian/clean: Remove python3/__pycache__/ on clean.  (Closes: #1047428)
+  * debian/copyright: Update copyright holders and years.
 
- -- Deepin Packages Builder <packages@deepin.org>  Mon, 14 Nov 2022 17:49:31 +0800
+ -- Olly Betts <olly@survex.com>  Wed, 10 Apr 2024 10:45:09 +1200
+
+xapian-bindings (1.4.22-2) unstable; urgency=medium
+
+  * debian/control.in: Mark conformance with policy 4.7.0.
+  * debian/rules: Adjust ruby-xapian generated "Depends" to pick up t64
+    suffix.  (Closes: #1068599)
+
+ -- Olly Betts <olly@survex.com>  Mon, 08 Apr 2024 17:05:15 +1200
+
+xapian-bindings (1.4.22-1) unstable; urgency=medium
+
+  * debian/control.in: Mark conformance with policy 4.6.2.
+  * New upstream release.
+
+ -- Olly Betts <olly@survex.com>  Fri, 03 Feb 2023 10:07:50 +1300
+
+xapian-bindings (1.4.21-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Olly Betts <olly@survex.com>  Fri, 23 Sep 2022 17:47:09 +1200
+
+xapian-bindings (1.4.20-2) unstable; urgency=medium
+
+  * debian/rules,debian/python3-xapian.install: Update for removal of
+    Python 3.9. (Closes: #1015340)
+
+ -- Olly Betts <olly@survex.com>  Wed, 20 Jul 2022 11:34:17 +1200
+
+xapian-bindings (1.4.20-1) unstable; urgency=medium
+
+  * New upstream release.
+  * debian/python3-xapian.install: Update path where module is installed by
+    upstream build system (which has changed due to switch away from
+    distutils).
+  * debian/control.in: Mark conformance with policy 4.6.1.
+
+ -- Olly Betts <olly@survex.com>  Fri, 08 Jul 2022 15:16:20 +1200
 
 xapian-bindings (1.4.18-2) unstable; urgency=medium
 

@@ -70,7 +70,9 @@ our %EXPORT_TAGS = (
 				 ENQ_DONT_CARE
 				   ) ],
 		    'qpflags' => [ qw(
+				 FLAG_ACCUMULATE
 				 FLAG_BOOLEAN
+				 FLAG_NO_POSITIONS
 				 FLAG_PHRASE
 				 FLAG_LOVEHATE
 				 FLAG_BOOLEAN_ANY_CASE
@@ -82,6 +84,7 @@ our %EXPORT_TAGS = (
 				 FLAG_AUTO_SYNONYMS
 				 FLAG_AUTO_MULTIWORD_SYNONYMS
 				 FLAG_CJK_NGRAM
+				 FLAG_NGRAMS
 				 FLAG_DEFAULT
 				 ) ],
 		    'qpstem' => [ qw(
@@ -487,8 +490,8 @@ This module is mostly compatible with Search::Xapian.  The following are known
 differences, with details of how to write code which works with both.
 
 Search::Xapian overloads stringification - e.g. C<"$query"> is equivalent to
-C<$query->get_description()>, while C<"$termiterator"> is equivalent to
-C<$termiterator->get_term()>.  This module doesn't support overloaded
+C<$query-E<gt>get_description()>, while C<"$termiterator"> is equivalent to
+C<$termiterator-E<gt>get_term()>.  This module doesn't support overloaded
 stringification, so you should instead explicitly call the method you
 want.  The technical reason for this change is that stringification is hard to
 support in SWIG-generated bindings, but this context-sensitive stringification
@@ -496,19 +499,25 @@ where the operation performed depends on the object type seems unhelpful in
 hindsight anyway.
 
 Search::Xapian overloads conversion to an integer for some classes - e.g.
-C<0+$positioniterator> is equivalent to C<$positioniterator->get_termpos>
-while C<0+$postingiterator> is equivalent to C<$postingiterator->get_docid>.
+C<0+$positioniterator> is equivalent to C<$positioniterator-E<gt>get_termpos>
+while C<0+$postingiterator> is equivalent to C<$postingiterator-E<gt>get_docid>.
 This module doesn't provide these overloads so you should instead explicitly
 call the method you want.  As above, we think this context-sensitive behaviour
 wasn't helpful in hindsight.
 
 This module is fussier about whether a passed scalar value is a string or
-an integer than Search::Xapian, so e.g. C<Xapian::Query->new(2001)> will fail
+an integer than Search::Xapian, so e.g. C<Xapian::Query-E<gt>new(2001)> will fail
 but the equivalent worked with Search::Xapian.  If C<$term> might not be a
-string use C<Xapian::Query->new("$term")> to ensure it is converted to a
-string.  The new behaviour isn't very Perlish, but is likely to be hard to
-address universally as it comes from SWIG.  Let us know if you find particular
-places where it's annoying and we can look at addressing those.
+string use C<Xapian::Query-E<gt>new("$term")> to ensure it is converted to a
+string.  Whether explicit stringification is needed depends on whether the
+scalar is marked as having a string representation by Perl; prior to Perl
+5.36.0 retrieving the string value of an integer could set this flag, but
+that's no longer the case in Perl 5.36.0 and later.  The simple rule is to
+always explicitly stringify if the value might be numeric.
+
+This behaviour isn't very Perlish, but is likely to be hard to address
+universally as it comes from SWIG.  Let us know if you find particular places
+where it's annoying and we can look at addressing those.
 
 Both this module and Search::Xapian support passing a Perl sub (which can be
 anonymous) for the functor classes C<MatchDecider> and C<ExpandDecider>.  In
@@ -604,7 +613,7 @@ Like OP_AND, but only weight using the left query.
 =item OP_NEAR
 
 Match if the words are near each other. The window should be specified, as
-a parameter to C<Xapian::Query->new()>, but it defaults to the
+a parameter to C<Xapian::Query-E<gt>new()>, but it defaults to the
 number of terms in the list.
 
 =item OP_PHRASE
@@ -672,9 +681,17 @@ searches.
 
 =item FLAG_SYNONYM
 
+=item FLAG_ACCUMULATE
+
 =item FLAG_AUTO_SYNONYMS
 
 =item FLAG_AUTO_MULTIWORD_SYNONYMS
+
+=item FLAG_NGRAMS
+
+=item FLAG_CJK_NGRAM
+
+=item FLAG_NO_POSITIONS
 
 =back
 

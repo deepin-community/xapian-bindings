@@ -1,20 +1,20 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.16: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.20.1: https://docutils.sourceforge.io/" />
 <title>Xapian Java Bindings</title>
 <style type="text/css">
 
 /*
 :Author: David Goodger (goodger@python.org)
-:Id: $Id: html4css1.css 7952 2016-07-26 18:15:59Z milde $
+:Id: $Id: html4css1.css 8954 2022-01-20 10:10:25Z milde $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
 
-See http://docutils.sf.net/docs/howto/html-stylesheets.html for how to
+See https://docutils.sourceforge.io/docs/howto/html-stylesheets.html for how to
 customize this style sheet.
 */
 
@@ -368,6 +368,8 @@ possibly make some changes and then declare it stable early in the 1.4.x
 release series.</p>
 <div class="section" id="how-to-build-the-bindings">
 <h1>How to build the bindings:</h1>
+<p>If you want to install from source you'll need to <a class="reference external" href="https://xapian.org/download">download the source
+code</a> if you haven't already done so.</p>
 <p>Running &quot;make&quot; and then &quot;make install&quot; will &quot;install&quot; a JNI glue shared library
 into a &quot;built&quot; subdirectory of the java build directory.  The jar file is built
 into the &quot;built&quot; subdirectory too.</p>
@@ -395,10 +397,12 @@ java -Djava.library.path=built -classpath built/xapian.jar:docs/examples \
 java -Djava.library.path=built -classpath built/xapian.jar:docs/examples \
      SimpleSearch ./test.db index words like java
 </pre>
-<p>Alternatively, you can avoid needing the -Djava.library.path setting by
-setting the LD_LIBRARY_PATH environment variable, or by installing the JNI
+<p>Alternatively, you can avoid needing the <cite>-Djava.library.path</cite> setting by
+setting the <cite>LD_LIBRARY_PATH</cite> environment variable, or by installing the JNI
 library in the appropriate directory so your JVM finds it automatically
-(for example, on Mac OS X you can copy it into /Library/Java/Extensions/).</p>
+(for example, on macOS you can copy it into <cite>/Library/Java/Extensions/</cite>
+- you can also copy the <cite>.jar</cite> file there and avoid needing to specify it
+via <cite>-classpath</cite>).</p>
 <p>The java bindings have been tested recently with OpenJDK versions 1.8.0_77,
 1.7.0_03, and 1.6.0_38, but they should work with any java toolchain with
 suitable JNI support - please report success stories or any problems to the

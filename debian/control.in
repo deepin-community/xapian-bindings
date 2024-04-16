@@ -2,9 +2,9 @@ Source: xapian-bindings
 Section: libs
 Priority: optional
 Maintainer: Olly Betts <olly@survex.com>
-Build-Depends: @BUILD_DEPS@ debhelper-compat (= 12)
+Build-Depends: @BUILD_DEPS@ debhelper-compat (= 12), pkgconf
 @XS_RUBY_VERSIONS@
-Standards-Version: 4.5.1
+Standards-Version: 4.7.0
 Homepage: https://xapian.org/
 Rules-Requires-Root: no
 Vcs-Browser: https://salsa.debian.org/olly/xapian-bindings

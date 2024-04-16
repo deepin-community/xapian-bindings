@@ -5,11 +5,7 @@ include ../generic/generic.mk
 ## Test programs to be run
 TESTS = smoketest.py pythontest.py
 AM_TESTS_ENVIRONMENT = \
-	abs_builddir='$(abs_builddir)' ;\
-	srcdir='$(srcdir)' ;\
 	PYTHON='$(PYTHON2)' ;\
-	export abs_builddir ;\
-	export srcdir ;\
 	export PYTHON ;
 LOG_COMPILER = '$(srcdir)'/run-python-test
 
@@ -23,7 +19,7 @@ RST_DOCS = \
 	docs/introduction.rst \
 	docs/xapian.rst
 
-BUILT_SOURCES = xapian_wrap.cc xapian_wrap.h xapian.py
+BUILT_SOURCES = xapian_wrap.cc xapian_wrap.h xapian__init__.py
 
 EXTRA_DIST = python.i util.i extra.i extracomments.i except.i \
 	doccomments.i \
@@ -62,11 +58,10 @@ _xapian_la_LDFLAGS = -avoid-version -module -shrext "$(PYTHON2_SO)" $(NO_UNDEFIN
 _xapian_la_SOURCES = xapian_wrap.cc
 _xapian_la_LIBADD = $(XAPIAN_LIBS) $(PYTHON2_LIBS)
 
-# We want `xapian/__init__.py` rather than xapian.py so the module is treated
-# as a package.
-xapian/__init__.py: xapian.py
+# We want `xapian/__init__.py` so the module is treated as a package.
+xapian/__init__.py: xapian__init__.py
 	$(MKDIR_P) xapian
-	cp `test -f xapian.py || echo '$(srcdir)/'`xapian.py xapian/__init__.py
+	cp `test -f xapian__init__.py || echo '$(srcdir)/'`xapian__init__.py xapian/__init__.py
 
 # We "import _xapian" first so that if we fail to import the glue library
 # we don't generate a broken .pyc or .pyo, and we do it with the current
@@ -78,19 +73,16 @@ xapian/__init__.py: xapian.py
 # doesn't cope with being xapian/__init__.py (currently it needs fixing
 # up, which is done by fixup-swig-py2-wrapper).
 xapian/__init__.pyc: xapian/__init__.py xapian/_xapian$(PYTHON2_SO)
-	$(OSX_SIP_HACK_ENV) $(PYTHON2) -c 'import os;os.chdir("xapian");import _xapian'
-	$(OSX_SIP_HACK_ENV) $(PYTHON2) -c 'import xapian'
+	$(MACOS_SIP_HACK_ENV) $(PYTHON2) -c 'import os;os.chdir("xapian");import _xapian'
+	$(MACOS_SIP_HACK_ENV) $(PYTHON2) -c 'import xapian'
 
 xapian/__init__.pyo: xapian/__init__.py xapian/_xapian$(PYTHON2_SO)
-	$(OSX_SIP_HACK_ENV) $(PYTHON2) -O -c 'import os;os.chdir("xapian");import _xapian'
-	$(OSX_SIP_HACK_ENV) $(PYTHON2) -O -c 'import xapian'
+	$(MACOS_SIP_HACK_ENV) $(PYTHON2) -O -c 'import os;os.chdir("xapian");import _xapian'
+	$(MACOS_SIP_HACK_ENV) $(PYTHON2) -O -c 'import xapian'
 
 xapian/_xapian$(PYTHON2_SO): _xapian.la
 	$(MKDIR_P) xapian
-	$(LIBTOOL) --config > libtoolconfig.tmp
-## ksh requires a path on the sourced file.
-	. ./libtoolconfig.tmp; cp $$objdir/_xapian$(PYTHON2_SO) xapian
-	rm -f libtoolconfig.tmp
+	cp $(_libs)/_xapian$(PYTHON2_SO) xapian
 
 CLEANFILES = \
     xapian/_xapian$(PYTHON2_SO) \
@@ -124,14 +116,15 @@ stamp = xapian_wrap.stamp
 RUN_SWIG = stamp='$(stamp)' $(PERL) '$(top_srcdir)'/swig-depcomp $(SWIG)
 SWIG_FLAGS += -DSWIG_PYTHON_LEGACY_BOOL
 
-xapian_wrap.cc xapian_wrap.h xapian.py xapian_wrap.d: $(stamp)
+xapian_wrap.cc xapian_wrap.h xapian.py__init__.py xapian_wrap.d: $(stamp)
 	$(make_many_locked)
 $(stamp): except.i doccomments.i fixup-swig-py2-wrapper
 	$(multitarget_begin)
 	$(RUN_SWIG) $(SWIG_WERROR) -I. -I'$(srcdir)' $(SWIG_FLAGS) -c++ \
-	    -python -threads -shadow -modern -O \
+	    -python -threads -shadow -O \
 	    -o xapian_wrap.cc '$(srcdir)/'python.i
-	$(PERL) -i $(srcdir)/fixup-swig-py2-wrapper xapian.py
+	$(PERL) $(srcdir)/fixup-swig-py2-wrapper xapian.py > xapian__init__.py
+	rm xapian.py
 	$(multitarget_end)
 
 -include xapian_wrap.d
@@ -166,6 +159,6 @@ $(sphinxdocs): xapian/__init__.py xapian/_xapian$(PYTHON2_SO) docs/conf.py $(RST
 ## -b html, and so apparently is safe.
 ##
 ## Change was merged here: https://github.com/sphinx-doc/sphinx/pull/3668
-	PYTHONPATH=..:$$PYTHONPATH $(OSX_SIP_HACK_ENV) $(PYTHON2) \
+	PYTHONPATH=..:$$PYTHONPATH $(MACOS_SIP_HACK_ENV) $(PYTHON2) \
 		-c 'import sphinx,sys;sys.exit(sphinx.main(sys.argv[1:]))' \
 		-bhtml -b html -d doctrees -c docs $(srcdir)/docs docs/html
