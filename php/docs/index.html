@@ -1,20 +1,20 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.16: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.20.1: https://docutils.sourceforge.io/" />
 <title>PHP bindings for Xapian</title>
 <style type="text/css">
 
 /*
 :Author: David Goodger (goodger@python.org)
-:Id: $Id: html4css1.css 7952 2016-07-26 18:15:59Z milde $
+:Id: $Id: html4css1.css 8954 2022-01-20 10:10:25Z milde $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
 
-See http://docutils.sf.net/docs/howto/html-stylesheets.html for how to
+See https://docutils.sourceforge.io/docs/howto/html-stylesheets.html for how to
 customize this style sheet.
 */
 
@@ -363,14 +363,13 @@ ul.auto-toc {
 <div class="document" id="php-bindings-for-xapian">
 <h1 class="title">PHP bindings for Xapian</h1>
 
-<p>The PHP5 bindings for Xapian are packaged in the <tt class="docutils literal">xapian</tt>
+<p>The PHP bindings for Xapian are packaged in the <tt class="docutils literal">xapian</tt>
 extension.  The PHP API provided by this extension largely follows Xapian's C++
 API.  This document lists the differences and additions.</p>
-<p>As of Xapian version 1.3.2, these bindings require at least PHP 5.5.
-(Older versions of PHP are now out of security support, but if you really need
-support for them then Xapian 1.2 supports PHP 5.0 and later).  PHP 7 is supported
-by a separate set of bindings (this approach was taken due to extensive changes
-to PHP's C extension API between PHP 5 and PHP 7).</p>
+<p>As of Xapian version 1.4.22, these bindings require at least PHP 8.0.
+PHP 5 is now well out of security support, while PHP 7 upstream security
+support ends 2021-11-28 - if you still need to use these versions then
+Xapian 1.4.21 was the last version to support them.</p>
 <p>PHP strings, arrays, etc., are converted automatically to and from the
 corresponding C++ types in the bindings, so generally you can pass arguments as
 you would expect.  One thing to be aware of though is that SWIG implements
@@ -381,8 +380,8 @@ You need to
 explicitly convert to the type required - e.g. use <tt class="docutils literal">(int)</tt> to
 convert to an integer, <tt class="docutils literal">(string)</tt> to string, <tt class="docutils literal">(double)</tt>
 to a floating point number.</p>
-<p>With version 1.2.6 and later, you can subclass Xapian classes in PHP and
-virtual methods defined in PHP are called from C++ in the way you'd expect.</p>
+<p>You can subclass Xapian classes in PHP and virtual methods defined in PHP are
+called from C++ in the way you'd expect.</p>
 <p>PHP has a lot of reserved words of various sorts, which sadly clash with common
 method names.  Because of this <tt class="docutils literal">empty()</tt> methods of various
 container-like classes are wrapped as <tt class="docutils literal">is_empty()</tt> for PHP
@@ -390,28 +389,35 @@ and the <tt class="docutils literal">clone()</tt> method of the <tt class="docut
 class and subclasses is wrapped as <tt class="docutils literal">clone_object()</tt>.</p>
 <p>The <tt class="docutils literal">examples</tt> subdirectory contains examples showing how to use the
 PHP bindings based on the simple examples from <tt class="docutils literal"><span class="pre">xapian-examples</span></tt>:
-<a class="reference external" href="examples/simpleindex.php5">simpleindex.php5</a>,
-<a class="reference external" href="examples/simplesearch.php5">simplesearch.php5</a>,
-<a class="reference external" href="examples/simpleexpand.php5">simpleexpand.php5</a>,
-<a class="reference external" href="examples/simplematchdecider.php5">simplematchdecider.php5</a>.</p>
+<a class="reference external" href="examples/simpleindex.php8">simpleindex.php8</a>,
+<a class="reference external" href="examples/simplesearch.php8">simplesearch.php8</a>,
+<a class="reference external" href="examples/simpleexpand.php8">simpleexpand.php8</a>,
+<a class="reference external" href="examples/simplematchdecider.php8">simplematchdecider.php8</a>.</p>
 <p>Note that these examples are written to work with the command line (CLI)
 version of the PHP interpreter, not through a webserver.  Xapian's PHP
 bindings may of course also be used under CGI, Apache's modphp, ISAPI,
 etc.</p>
 <div class="section" id="installation">
 <h1>Installation</h1>
+<p>This version of the bindings only support PHP &gt;= 8.0  If you need support
+for PHP 5.x or 7.x, you'll need to use Xapian 1.4.21 or earlier instead.</p>
+<p>If you want to install from source you'll need to <a class="reference external" href="https://xapian.org/download">download the source
+code</a> if you haven't already done so.</p>
 <p>Assuming you have a suitable version of PHP installed, running
 configure will automatically enable the PHP bindings, and
 <tt class="docutils literal">make install</tt> will install the extension shared library in
 the location reported by <tt class="docutils literal"><span class="pre">php-config</span> <span class="pre">--extension-dir</span></tt>.</p>
 <p>Check that php.ini has a line like <tt class="docutils literal">extension_dir = &quot;&lt;location reported by <span class="pre">php-config</span> <span class="pre">--extension-dir&gt;&quot;</span></tt>.</p>
-<p>Then add this line to php.ini: <tt class="docutils literal">extension = xapian.so</tt> (or
-whatever the library is called - not all UNIX systems use <tt class="docutils literal">.so</tt>
-as the extension, and MS Windows uses <tt class="docutils literal">.dll</tt>).</p>
+<p>Then add this line to php.ini: <tt class="docutils literal">extension=xapian</tt></p>
 <p>If you're using PHP as a webserver module (e.g. mod_php with Apache), you
 may need to restart the webserver for this change to take effect.</p>
-<p>You also need to add <tt class="docutils literal"><span class="pre">include&amp;nbsp;&quot;xapian.php&quot;</span></tt>
-to your PHP scripts which use Xapian in order to get the PHP class wrappers.</p>
+<p>Previous versions of these bindings for PHP &lt; 8 also required you to add
+<tt class="docutils literal"><span class="pre">include&amp;nbsp;&quot;xapian.php&quot;</span></tt> to your PHP scripts which use Xapian, but
+this is not necessary with versions which support PHP8 (1.4.22 and newer).
+To write code which supports both you can use:</p>
+<pre class="literal-block">
+if (PHP_MAJOR_VERSION &lt; 8) include &quot;xapian.php&quot;;
+</pre>
 <div class="section" id="exceptions">
 <h2>Exceptions</h2>
 <p>Exceptions thrown by Xapian are translated into PHP Exception objects
@@ -430,11 +436,11 @@ when they go out of scope - to explicitly destroy an object you can use
 <h2>Unicode Support</h2>
 <p>The Xapian::Stem, Xapian::QueryParser, and
 Xapian::TermGenerator classes all assume text is in UTF-8.  If you want
-to index strings in a different encoding, use the PHP <a class="reference external" href="http://php.net/iconv">iconv function</a> to convert them to UTF-8 before passing them to Xapian, and when reading values back from Xapian.</p>
+to index strings in a different encoding, use the PHP <a class="reference external" href="https://secure.php.net/iconv">iconv function</a> to convert them to UTF-8 before passing them to Xapian, and when reading values back from Xapian.</p>
 </div>
 <div class="section" id="iterators">
 <h2>Iterators</h2>
-<p>Since Xapian 1.3.2, Xapian's iterators (except <tt class="docutils literal">XapianLatLongCoordsIterator</tt>)
+<p>Xapian's iterators (except <tt class="docutils literal">XapianLatLongCoordsIterator</tt>)
 are wrapped as PHP iterators, so can be used in <tt class="docutils literal">foreach</tt>.</p>
 <p>There's one important thing to beware of currently - the <tt class="docutils literal">rewind()</tt> method
 on <tt class="docutils literal">XapianPositionIterator</tt>, <tt class="docutils literal">XapianPostingIterator</tt>,
@@ -564,10 +570,10 @@ $q = new XapianQuery(XapianQuery::OP_AND, array($subq, &quot;foo&quot;, new Xapi
 </pre>
 <div class="section" id="matchall-and-matchnothing">
 <h3>MatchAll and MatchNothing</h3>
-<p>In Xapian 1.3.0 and later, these are wrapped as static methods
+<p>These are wrapped as static methods
 <tt class="docutils literal"><span class="pre">XapianQuery::MatchAll()</span></tt> and <tt class="docutils literal"><span class="pre">XapianQuery::MatchNothing()</span></tt>.</p>
-<p>If you want to be compatible with earlier versions, you can continue to use
-<tt class="docutils literal">new <span class="pre">XapianQuery('')</span></tt> for MatchAll and
+<p>If you want to be compatible with version 1.2.x of Xapian's PHP5 bindings, you
+can continue to use <tt class="docutils literal">new <span class="pre">XapianQuery('')</span></tt> for MatchAll and
 <tt class="docutils literal">new XapianQuery()</tt> for MatchNothing.</p>
 </div>
 </div>

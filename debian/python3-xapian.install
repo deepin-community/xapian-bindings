@@ -1,4 +1,6 @@
-usr/lib/python3/*-packages/xapian/*.so
-usr/lib/python3/*-packages/xapian/*.py
+# Python 3.9 installs under usr/lib/python3.9/site-packages and debian/rules moves that to usr/local/lib/python3.9/site-packages
+# Python 3.10 installs under usr/local/lib/python3.10/dist-packages
+usr/local/lib/python3*/*-packages/xapian/*.so
+usr/local/lib/python3*/*-packages/xapian/*.py
 usr/share/doc/xapian-bindings/python3/html usr/share/doc/python3-xapian
 usr/share/doc/xapian-bindings/python3/examples/*.py usr/share/doc/python3-xapian/examples

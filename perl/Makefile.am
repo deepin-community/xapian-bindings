@@ -41,7 +41,7 @@ AM_TESTS_ENVIRONMENT = \
 	export CXXFLAGS ;\
 	export XAPIAN_CONFIG ;
 LOG_COMPILER = \
-    $(LIBTOOL) -dlopen Xapian.la --mode=execute $(OSX_SIP_HACK_ENV) $(PERL) \
+    $(LIBTOOL) -dlopen Xapian.la --mode=execute $(MACOS_SIP_HACK_ENV) $(PERL) \
 	$(srcdir)/run-perl-test
 
 installcheck-local:
@@ -55,10 +55,7 @@ BUILT_SOURCES = Xapian.pm xapian_wrap.cc \
 
 auto/Xapian/Xapian$(PERL_SO): Xapian.la
 	@$(MKDIR_P) auto/Xapian
-	$(LIBTOOL) --config > libtoolconfig.tmp
-## ksh requires a path on the sourced file.
-	. ./libtoolconfig.tmp; cp "$$objdir/Xapian$(PERL_SO)" auto/Xapian
-	rm -f libtoolconfig.tmp
+	cp "$(_libs)/Xapian$(PERL_SO)" auto/Xapian
 
 EXTRA_DIST = perl.i except.i extra.i $(TESTS) \
 	generate-perl-exceptions \
@@ -87,11 +84,22 @@ perlarch_LTLIBRARIES = Xapian.la
 install-data-hook:
 	rm -f $(DESTDIR)$(perlarchdir)/Xapian.la
 
-# Because we don't install the .la file, "make uninstall" doesn't work and
-# we need to remove the file ourselves.
+install-data-local:
+	$(mkinstalldirs) "$(DESTDIR)$(docdatadir)/Xapian"
+	@cd docs ; for f in Xapian/*.html ; do \
+	  echo " $(INSTALL_DATA) '$$f' '$(DESTDIR)$(docdatadir)/$$f'"; \
+	  $(INSTALL_DATA) "$$f" "$(DESTDIR)$(docdatadir)/$$f"; \
+	done
+
 uninstall-local:
-	eval `grep '^dlname=' $(perlarch_LTLIBRARIES)` ; \
-	  rm -f $(DESTDIR)$(perlarchdir)/"$$dlname"
+	## Because we don't install the .la file, "make uninstall" doesn't work and
+	## we need to remove the file ourselves.
+	rm -f $(DESTDIR)$(perlarchdir)/Xapian$(PERL_SO)
+	@cd docs ; for f in Xapian/*.html ; do \
+	  echo " rm -f '$(DESTDIR)$(docdatadir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(docdatadir)/$$f"; \
+	done
+
 
 perllibdir = $(PERL_LIB)
 nobase_dist_perllib_DATA = \
@@ -163,7 +171,7 @@ xapian_wrap.cc Xapian.pm: $(stamp)
 $(stamp): except.i
 	$(multitarget_begin)
 	$(RUN_SWIG) $(SWIG_WERROR) -I. -I'$(srcdir)' $(SWIG_FLAGS) -c++ \
-	    -perl -module Xapian -proxy -const \
+	    -perl -module Xapian -const \
 	    -DPERL_XAPIAN_VERSION='"$(PERL_XAPIAN_VERSION)"' \
 	    -o xapian_wrap.cc '$(srcdir)/'perl.i
 	$(multitarget_end)
@@ -175,11 +183,12 @@ endif
 MAINTAINERCLEANFILES = $(BUILT_SOURCES)
 
 docdatadir = $(docdir)/perl
-docdata_DATA = docs/index.html
+docdata_DATA = docs/Xapian.html
 
-CLEANFILES += docs/index.html pod2html?.tmp
+CLEANFILES += docs/Xapian.html pod2html?.tmp
 
-docs/index.html: Xapian.pm
+docs/Xapian.html: $(nobase_dist_perllib_DATA)
 	$(MKDIR_P) docs
-	$(PERL) -MPod::Html -e 'pod2html(qw(--podpath=. Xapian.pm --outfile=docs/index.html))'
-	rm -f -v pod2htm?.tmp
+	$(MKDIR_P) docs/Xapian
+	$(PERL) -MPod::Html -e 'for (@ARGV) { my $$pm = $$_; s/pm$$/html/; $$pm = "$(srcdir)/$$pm" unless -f $$pm; pod2html("--podpath=.", "--htmldir=docs", "--infile=$$pm", "--outfile=docs/$$_") }' $(nobase_dist_perllib_DATA)
+	rm -f pod2htm?.tmp

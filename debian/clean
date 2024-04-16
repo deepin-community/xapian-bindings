@@ -1,2 +1,3 @@
 debian/build/
 java/built/xapian.jar
+python/__pycache__/

@@ -1,5 +1,5 @@
 <?php
-/* Simple example PHP5 script demonstrating query expansion.
+/* Simple example PHP script demonstrating query expansion.
  *
  * Copyright (C) 2007,2014,2015 Olly Betts
  *
@@ -24,7 +24,7 @@ if (php_sapi_name() != "cli") {
     exit(1);
 }
 
-include "xapian.php";
+if (PHP_MAJOR_VERSION < 8) include "xapian.php";
 
 if ($argc < 3) {
     print "Usage: {$argv[0]} PATH_TO_DATABASE QUERY [-- [DOCID...]]\n";

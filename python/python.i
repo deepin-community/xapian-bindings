@@ -1,5 +1,4 @@
-%module(directors="1", moduleimport="from . import _xapian
-from new import instancemethod as new_instancemethod") xapian
+%module(directors="1", moduleimport="from . import _xapian") xapian
 %{
 /* python.i: SWIG interface file for the Python bindings
  *
@@ -183,8 +182,11 @@ class XapianSWIG_Python_Thread_Allow {
 %nothreadallow Xapian::Query::Query(op op_, XapianSWIGQueryItor qbegin, XapianSWIGQueryItor qend, Xapian::termcount parameter = 0);
 
 %typemap(typecheck, precedence=500) (XapianSWIGQueryItor qbegin, XapianSWIGQueryItor qend) {
-    // Checking for a sequence is enough to disambiguate currently.
-    $1 = PySequence_Check($input);
+    // Checking for a sequence which isn't a string or unicode is enough to
+    // disambiguate currently.
+    $1 = (PySequence_Check($input) &&
+          !PyUnicode_Check($input) &&
+          !PyString_Check($input));
 }
 
 %{

@@ -1,4 +1,4 @@
-// Simple test that we can load the xapian module and run a simple test
+// Simple test that we can use xapian from csharp
 //
 // Copyright (C) 2004,2005,2006,2007,2008,2011,2016,2019 Olly Betts
 //
@@ -41,6 +41,10 @@ class SmokeTest {
 	    }
 
 	    Xapian.Stem stem = new Xapian.Stem("english");
+	    if (stem.GetDescription() != "Xapian::Stem(english)") {
+		System.Console.WriteLine("Unexpected stem.GetDescription()");
+		System.Environment.Exit(1);
+	    }
 	    Xapian.Document doc = new Xapian.Document();
 	    // Currently SWIG doesn't generate zero-byte clean code for
 	    // transferring strings between C# and C++.
@@ -85,7 +89,7 @@ class SmokeTest {
 	    // Check exception handling for Xapian::DocNotFoundError.
 	    try {
 		Xapian.Document doc2 = db.GetDocument(2);
-		System.Console.WriteLine("Retrieved non-existent document: " + doc2.ToString());
+		System.Console.WriteLine("Retrieved non-existent document: " + doc2.GetDescription());
 		System.Environment.Exit(1);
 	    } catch (System.Exception e) {
 		// We expect DocNotFoundError
@@ -125,12 +129,12 @@ class SmokeTest {
 	    qp.AddRangeprocessor(rpdate, "foo");
 
             if (Xapian.Query.MatchAll.GetDescription() != "Query(<alldocuments>)") {
-		System.Console.WriteLine("Unexpected Query.MatchAll.toString()");
+		System.Console.WriteLine("Unexpected Query.MatchAll.GetDescription()");
 		System.Environment.Exit(1);
             }
 
             if (Xapian.Query.MatchNothing.GetDescription() != "Query()") {
-		System.Console.WriteLine("Unexpected Query.MatchNothing.toString()");
+		System.Console.WriteLine("Unexpected Query.MatchNothing.GetDescription()");
 		System.Environment.Exit(1);
             }
 

@@ -4,7 +4,7 @@ dnl See xapian-core's HACKING document for details of the reasons for required
 dnl versions.
 AC_PREREQ([2.63])
 
-m4_define([project_version], [1.4.18])
+m4_define([project_version], [1.4.25])
 AC_INIT([xapian-bindings], project_version, [https://xapian.org/bugs])
 
 dnl See xapian-core's HACKING document for details of the reasons for required
@@ -16,43 +16,18 @@ AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
 
-dnl Mac OS X needs MACOSX_DEPLOYMENT_TARGET set to 10.3 (or higher) to
-dnl successfully link the SWIG generated modules.  The link always fails on
-dnl earlier versions of Mac OS X (10.1.4 and 10.2.8 tested), and these versions
-dnl are long obsolete now, so we just ensure that MACOSX_DEPLOYMENT_TARGET is
-dnl set to at least 10.3.
-dnl
-dnl NB we must do this *BEFORE* LT_INIT since that is what checks
-dnl MACOSX_DEPLOYMENT_TARGET.
 AC_CANONICAL_HOST
-OVERRIDE_MACOSX_DEPLOYMENT_TARGET=
-case $host in
-*86*-darwin8*|*-darwin[[912]]*)
-  dnl On 10.5 or later, and 10.4 on x86, the deployment target defaults to the
-  dnl OS version, so we don't need to override on these.
-  ;;
-*-darwin*)
-  case $MACOSX_DEPLOYMENT_TARGET in
-  "")
-    OVERRIDE_MACOSX_DEPLOYMENT_TARGET=10.3 ;;
-  10.[[012]])
-    AC_MSG_WARN([Overriding MACOSX_DEPLOYMENT_TARGET from $MACOSX_DEPLOYMENT_TARGET to 10.3])
-    OVERRIDE_MACOSX_DEPLOYMENT_TARGET=10.3 ;;
-  esac
-  ;;
-esac
-AM_CONDITIONAL(OVERRIDE_MACOSX_DEPLOYMENT_TARGET, test -n "$OVERRIDE_MACOSX_DEPLOYMENT_TARGET")
-AC_SUBST(OVERRIDE_MACOSX_DEPLOYMENT_TARGET)
-if test -n "$OVERRIDE_MACOSX_DEPLOYMENT_TARGET" ; then
-  MACOSX_DEPLOYMENT_TARGET=$OVERRIDE_MACOSX_DEPLOYMENT_TARGET
-fi
 
 dnl Use libtool to manage our libraries, but don't build static libraries as
 dnl the bindings only have a use for dynamic ones.
 LT_PREREQ([2.2.6])
 LT_INIT([disable-static])
 
-dnl -no-undefined causes problems on Mac OS X with at least some
+dnl Make the name of libtool's `.libs`/`_libs` available in makefiles.
+_libs=$objdir
+AC_SUBST([_libs])
+
+dnl -no-undefined causes problems on macOS with at least some
 dnl MACOSX_DEPLOYMENT_TARGET settings, so only pass -no-undefined on
 dnl platforms where it is required in order to link a shared library at
 dnl all (Windows is the main one).
@@ -65,9 +40,9 @@ AC_SUBST(NO_UNDEFINED)
 dnl Checks for programs.
 AC_PROG_CXX
 
-# Checked: freebsd8.0 openbsd4.6 solaris2.9 solaris2.10
+# Checked: dragonfly6.4 freebsd8.0 openbsd4.6 solaris2.9 solaris2.10
 case $host_os in
-  linux* | k*bsd*-gnu | freebsd* | openbsd* | solaris*)
+  linux* | k*bsd*-gnu | dragonfly* | freebsd* | openbsd* | solaris*)
     dnl Vanilla libtool sets this to "unknown" which it then handles as "yes".
     link_all_deplibs_CXX=no
     ;;
@@ -83,10 +58,10 @@ case $host_os in
 esac
 
 dnl Run tests using the C++ compiler.
-AC_LANG_CPLUSPLUS
+AC_LANG([C++])
 
 dnl Probe for any options needed to enable C++11 support.
-AX_CXX_COMPILE_STDCXX_11
+AX_CXX_COMPILE_STDCXX([11])
 
 dnl Check for xapian-core.
 XO_LIB_XAPIAN([], [],
@@ -118,7 +93,7 @@ darwin*)
       *) INTREE_DYLD_PATH=`pwd`/$INTREE_DYLD_PATH ;;
     esac
     dnl Add .libs or equivalent.
-    INTREE_DYLD_PATH=`echo "$INTREE_DYLD_PATH"|sed 's,\(.*/\).*,\1,'`$lt_cv_objdir
+    INTREE_DYLD_PATH=`echo "$INTREE_DYLD_PATH"|sed 's,\(.*/\).*,\1,'`$_libs
     AC_SUBST([INTREE_DYLD_PATH])
   fi
   ;;
@@ -171,6 +146,7 @@ if test yes = "$enable_documentation" ; then
   dnl Check for rst2html. (Needed to make HTML from reStructuredText format)
   dnl Also look for rst2html.py, which archlinux reportedly installs it as.
   AC_PATH_PROGS(RST2HTML, [rst2html rst2html.py], [])
+  AC_ARG_VAR([RST2HTML], [reST to HTML convertor])
   test -z "$RST2HTML" && AC_MSG_ERROR([rst2html is required to build documentation (try package python-docutils)])
 fi
 
@@ -187,14 +163,11 @@ if test x$USE_MAINTAINER_MODE = xyes; then
   fi
   dnl Check for new enough SWIG.
   dnl
-  dnl 3.0.6 fixes compiling the Perl bindings under C++11 ("seed" macro issue).
-  dnl 3.0.8 fixes conversion of integers large than an int in Python 3.
-  dnl 3.0.9 fixes generation of unnecessary _swigconstant helpers for Python.
-  dnl 3.0.12 fixes segfault on unload with PHP 7.1
+  dnl 4.1.0 adds support for PHP 8
   v=`$SWIG -version 2>&1|sed 's/^SWIG Version \([[0-9\.]]*\).*/\1/p;d'`
   case $v in
-    [[012].*|3.0.?|3.0.1[01]|""])
-      msg="SWIG >= 3.0.12 required (you have ${v:-an unknown version})"
+    [[0123].*|4.0.*|""])
+      msg="SWIG >= 4.1.0 required (you have ${v:-an unknown version})"
       if test -n "$swigoverridden" ; then
 	dnl If SWIG was explicitly set, make this a warning only.
 	AC_MSG_WARN([$msg])
@@ -229,6 +202,7 @@ if test x$USE_MAINTAINER_MODE = xyes; then
   dnl Need doxygen in maintainer mode to convert C++ doxygen comments to Python
   dnl docstrings.
   AC_PATH_PROG(DOXYGEN, doxygen, [])
+  AC_ARG_VAR([DOXYGEN], [Doxygen documentation system])
   test -z "$DOXYGEN" && AC_MSG_ERROR([doxygen is required to build documentation])
 fi
 
@@ -238,57 +212,51 @@ AC_ARG_WITH(python,
   [with_python=])
 
 AC_ARG_WITH(python3,
-  AC_HELP_STRING([--with-python3], [enable Python 3 bindings]),
+  AS_HELP_STRING([--with-python3], [enable Python 3 bindings]),
   [],
   [with_python3=])
 
 AC_ARG_WITH(php,
-  AC_HELP_STRING([--with-php], [enable PHP 5 bindings]),
+  AS_HELP_STRING([--with-php], [enable PHP bindings]),
   [],
   [with_php=])
 
-AC_ARG_WITH(php7,
-  AC_HELP_STRING([--with-php7], [enable PHP 7 bindings]),
-  [],
-  [with_php7=])
-
 AC_ARG_WITH(ruby,
-  AC_HELP_STRING([--with-ruby], [enable Ruby bindings]),
+  AS_HELP_STRING([--with-ruby], [enable Ruby bindings]),
   [],
   [with_ruby=])
 
 AC_ARG_WITH(tcl,
-  AC_HELP_STRING([--with-tcl], [enable Tcl bindings]),
+  AS_HELP_STRING([--with-tcl], [enable Tcl bindings]),
   [],
   [with_tcl=])
 
 AC_ARG_WITH(csharp,
-  AC_HELP_STRING([--with-csharp], [enable CSharp bindings]),
+  AS_HELP_STRING([--with-csharp], [enable CSharp bindings]),
   [],
   [with_csharp=])
 
 AC_ARG_WITH(java,
-  AC_HELP_STRING([--with-java], [enable Java bindings]),
+  AS_HELP_STRING([--with-java], [enable Java bindings]),
   [],
   [with_java=])
 
 AC_ARG_WITH(perl,
-  AC_HELP_STRING([--with-perl], [enable Perl bindings]),
+  AS_HELP_STRING([--with-perl], [enable Perl bindings]),
   [],
   [with_perl=])
 
 AC_ARG_WITH(lua,
-  AC_HELP_STRING([--with-lua], [enable Lua bindings]),
+  AS_HELP_STRING([--with-lua], [enable Lua bindings]),
   [],
   [with_lua=])
 
-case $with_python$with_python3$with_php$with_php7$with_ruby$with_tcl$with_csharp$with_java$with_perl$with_lua in
+case $with_python$with_python3$with_php$with_ruby$with_tcl$with_csharp$with_java$with_perl$with_lua in
 *yes*)
   dnl Default unspecified values to no.
   test -z "$with_python" && with_python=no
   test -z "$with_python3" && with_python3=no
   test -z "$with_php" && with_php=no
-  test -z "$with_php7" && with_php7=no
   test -z "$with_tcl" && with_tcl=no
   test -z "$with_csharp" && with_csharp=no
   test -z "$with_java" && with_java=no
@@ -315,12 +283,12 @@ if test no != "$with_python" ; then
   fi
   AC_ARG_VAR(PYTHON2, [Python 2 interpreter])
   if test -n "$PYTHON2" ; then
-    dnl Require Python 2.6 or newer.  Older versions are essentially
-    dnl unsupported upstream.
+    dnl Require Python 2.7 or newer.  Older versions are essentially
+    dnl unsupported upstream, and SWIG 4.0.0 dropped support for them too.
     AC_MSG_CHECKING([$PYTHON2 version])
     version=`$PYTHON2 -c 'import sys;print("%d.%d" % sys.version_info[[:2]])' 2>/dev/null`
     case $version in
-    [2.[6-9]*|2.[1-5][0-9]*])
+    [2.[7-9]*|2.[1-5][0-9]*])
       AC_MSG_RESULT([$version])
       ;;
     [[3-9].*])
@@ -333,7 +301,7 @@ if test no != "$with_python" ; then
     *)
       AC_MSG_RESULT([$version (too old)])
       if test yes = "$with_python" ; then
-	AC_MSG_ERROR([Only Python 2.6 or newer is supported ($PYTHON2 is $version)])
+	AC_MSG_ERROR([Only Python 2.7 or newer is supported ($PYTHON2 is $version)])
       fi
       PYTHON2=
       ;;
@@ -387,7 +355,7 @@ if test no != "$with_python" ; then
 	AC_MSG_RESULT([$PYTHON2_LIBS])
 
 	AC_MSG_CHECKING([for python2 module extension])
-	dnl Usually ".so", but for example, Mac OS X uses ".dylib".
+	dnl Usually ".so", but for example, macOS uses ".dylib".
 	PYTHON2_SO=`$PYTHON2 -c 'import distutils.sysconfig;print(distutils.sysconfig.get_config_vars("SO")[[0]])'`
 	AC_SUBST(PYTHON2_SO)
 	AC_MSG_RESULT([$PYTHON2_SO])
@@ -411,13 +379,13 @@ if test no != "$with_python3" ; then
   fi
   AC_ARG_VAR(PYTHON3, [Python 3 interpreter])
   if test -n "$PYTHON3" ; then
-    dnl Require Python 3.2 or newer, as that's the oldest version we can
+    dnl Require Python 3.3 or newer, as that's the oldest version we can
     dnl easily test with.  If anyone's keen to support older versions, please
     dnl test and send in any patches needed to get it to work.
     AC_MSG_CHECKING([$PYTHON3 version])
     version=`$PYTHON3 -c 'import sys;print("%d.%d" % sys.version_info[[:2]])' 2>/dev/null`
     case $version in
-    [3.[2-9]*|3.1[0-9]*|[4-9].*])
+    [3.[3-9]*|3.[12][0-9]*|[4-9].*])
       AC_MSG_RESULT([$version])
       ;;
     *)
@@ -429,17 +397,8 @@ if test no != "$with_python3" ; then
       ;;
     esac
     if test -n "$PYTHON3" ; then
-      if $PYTHON3 -c 'import distutils.sysconfig' 2>/dev/null ; then
-	PYTHON3_INC=`$PYTHON3 -c 'import os,distutils.sysconfig;print(distutils.sysconfig.get_python_inc().replace(os.sep,"/"))'`
-	AC_SUBST(PYTHON3_INC)
-      else
-	if test yes = "$with_python3" ; then
-	  AC_MSG_ERROR([Couldn't import Python module distutils.sysconfig - you probably need to install a python3-dev or python3-devel package])
-	else
-	  AC_MSG_WARN([Couldn't import Python module distutils.sysconfig - you probably don't have a python3-dev or python3-devel package installed])
-	  PYTHON3=
-	fi
-      fi
+      PYTHON3_INC=`$PYTHON3 -c 'import os,sysconfig;print(sysconfig.get_path("include").replace(os.sep,"/"))' 2>/dev/null`
+      AC_SUBST(PYTHON3_INC)
     fi
     AC_MSG_CHECKING([for python3 sphinx module])
     if $PYTHON3 -c 'import sphinx' >&5 2>&5 ; then
@@ -459,7 +418,7 @@ if test no != "$with_python3" ; then
 	AC_MSG_RESULT(yes)
 	AC_MSG_CHECKING([for directory to install python3 bindings in])
 	if test -z "$PYTHON3_LIB" ; then
-	  PYTHON3_LIB=`$PYTHON3 -c 'import os,distutils.sysconfig;print(distutils.sysconfig.get_python_lib(1).replace(os.sep,"/"))'`
+	  PYTHON3_LIB=`$PYTHON3 -c 'import os,sysconfig;print(sysconfig.get_path("platlib").replace(os.sep,"/"))'`
 	fi
 	AC_MSG_RESULT([$PYTHON3_LIB])
 	AC_ARG_VAR(PYTHON3_LIB, [Directory to install python3 bindings in])
@@ -477,18 +436,29 @@ if test no != "$with_python3" ; then
 	AC_MSG_RESULT([$PYTHON3_LIBS])
 
 	AC_MSG_CHECKING([for python3 module extension])
-	dnl Usually ".so", but for example, Mac OS X uses ".dylib".
-	PYTHON3_SO=`$PYTHON3 -c 'import distutils.sysconfig;print(distutils.sysconfig.get_config_vars("SO")[[0]])'`
-	AC_SUBST(PYTHON3_SO)
-	AC_MSG_RESULT([$PYTHON3_SO])
+	dnl Encodes the Python version the module is built for, and ends with
+	dnl the platform-dependent shared object extension (which is `.so` on
+	dnl most Unix-like platforms) - e.g. `.cpython-310-x86_64-linux-gnu.so`
+	PYTHON3_EXT_SUFFIX=`$PYTHON3 -c 'import sysconfig;print(sysconfig.get_config_var("EXT_SUFFIX"))'`
+	AC_SUBST(PYTHON3_EXT_SUFFIX)
+	AC_MSG_RESULT([$PYTHON3_EXT_SUFFIX])
 
 	AC_MSG_CHECKING([for tag for cached compiled scripts])
-	PYTHON3_CACHE_TAG=`$PYTHON3 -c 'import imp;print(imp.get_tag())'`
+	PYTHON3_CACHE_TAG=`$PYTHON3 -c 'import sys;print(sys.implementation.cache_tag)'`
 	AC_SUBST(PYTHON3_CACHE_TAG)
 	AC_MSG_RESULT([$PYTHON3_CACHE_TAG])
 
 	AC_MSG_CHECKING([for extension of cached and optimized python3 bytecode])
-	PYTHON3_CACHE_OPT1_EXT=`$PYTHON3 -c 'import imp,sys;print("%s.pyo"%imp.get_tag()) if sys.version_info.minor<5 else print("{1}{2}".format(*imp.util.cache_from_source("",optimization=1).rpartition(imp.get_tag())))'`
+	dnl We use -O instead of cache_from_source()'s optimization parameter
+	dnl as the latter was only added in Python 3.5.  The fallback is needed
+	dnl as cache_from_source() itself is new in Python 3.4.
+	dnl
+	dnl Some Python versions (or maybe packages) need us to explicitly
+	dnl `import importlib.util` here, but others work without it.
+	dnl
+	dnl This needs a shell-level || because Python one line program support
+	dnl is poor.
+	PYTHON3_CACHE_OPT1_EXT=`$PYTHON3 -O -c 'import importlib,importlib.util,sys;print("{1}{2}".format(*importlib.util.cache_from_source("").rpartition(sys.implementation.cache_tag)))' 2>/dev/null || $PYTHON3 -c 'import imp;print(imp.get_tag()+".pyo")'`
 	AC_SUBST(PYTHON3_CACHE_OPT1_EXT)
 	AC_MSG_RESULT([$PYTHON3_CACHE_OPT1_EXT])
 
@@ -522,18 +492,18 @@ if test no != "$with_php" ; then
     AC_PATH_PROGS(PHP_CONFIG, ["$PHP_CONFIG"], [])
   fi
   if test -z "$PHP_CONFIG" ; then
-    AC_PATH_PROGS(PHP_CONFIG, [php-config5 php-config5.6 php-config5.5 php-config], [])
+    AC_PATH_PROGS(PHP_CONFIG, [php-config8.2 php-config8.1 php-config8.0 php-config], [])
   fi
-  AC_ARG_VAR(PHP_CONFIG, [php-config utility for PHP5])
-  AC_ARG_VAR(PHP, [PHP5 interpreter (optional - only needed to run PHP5 testsuite with)])
+  AC_ARG_VAR(PHP_CONFIG, [php-config utility for PHP])
+  AC_ARG_VAR(PHP, [PHP interpreter (optional - only needed to run PHP testsuite with)])
   if test -n "$PHP_CONFIG" ; then
     AC_MSG_CHECKING([$PHP_CONFIG version])
     version=`$PHP_CONFIG --version 2>/dev/null`
     case $version in
-    [[01234].*|5.[01234].*|[6789].*])
-      AC_MSG_RESULT([$version (not supported, PHP5 bindings need PHP 5.x where x >= 5)])
+    [[01234567].*])
+      AC_MSG_RESULT([$version (not supported, PHP bindings need PHP >= 8)])
       if test yes = "$with_php" ; then
-	AC_MSG_ERROR([$PHP_CONFIG reports version $version - PHP5 bindings need PHP 5.x where x >= 5])
+	AC_MSG_ERROR([$PHP_CONFIG reports version $version - PHP bindings PHP >= 8])
       fi
       with_php=no
       ;;
@@ -545,47 +515,30 @@ if test no != "$with_php" ; then
     AC_SUBST(PHP_MAJOR_VERSION)
 
     if test no != "$with_php" ; then
-      AC_MSG_CHECKING([for PHP5 extension directory])
+      AC_MSG_CHECKING([for PHP extension directory])
       if test -z "$PHP_EXTENSION_DIR" ; then
 	PHP_EXTENSION_DIR=`$PHP_CONFIG --extension-dir`
       fi
       AC_MSG_RESULT([$PHP_EXTENSION_DIR])
-      AC_ARG_VAR(PHP_EXTENSION_DIR, [Directory to install PHP5 extensions in])
+      AC_ARG_VAR(PHP_EXTENSION_DIR, [Directory to install PHP extensions in])
     fi
 
     if test no != "$with_php" ; then
       PHP_INC=`$PHP_CONFIG --includes`
       AC_SUBST(PHP_INC)
-      save_CPPFLAGS=$CPPFLAGS
-      CPPFLAGS="$CPPFLAGS $PHP_INC"
-      dnl One of SGI's SuSE boxes has php-config but no headers.
-      AC_CHECK_HEADER(zend.h, [], [
-	if test yes = "$with_php" ; then
-	  AC_MSG_ERROR(['$PHP_CONFIG --includes' reports '$PHP_INC' but zend.h can't be included from there])
-	fi
-	with_php=no], [ ])
-      CPPFLAGS=$save_CPPFLAGS
     fi
 
     if test no != "$with_php" ; then
       if test x"$PHP" = x ; then
-	AC_MSG_CHECKING([for PHP5 interpreter])
-	dnl PHP5's php-config supports --php-binary, so just use that.
+	AC_MSG_CHECKING([for PHP interpreter])
 	PHP=`$PHP_CONFIG --php-binary 2>/dev/null`
 	if test x"$PHP" != x ; then
 	  if $PHP -r 'exit(0);' 2> /dev/null ; then
-	    if $PHP -r 'exit(PHP_MAJOR_VERSION==5?0:1);' 2> /dev/null ; then
+	    if $PHP -r 'exit(PHP_MAJOR_VERSION>=8?0:1);' 2> /dev/null ; then
 	      AC_MSG_RESULT([$PHP])
 	    else
-	      dnl We get /usr/bin/php on Debian, which might be PHP7:
-	      dnl https://bugs.debian.org/819139
-	      if ${PHP}5 -r 'exit(PHP_MAJOR_VERSION==5?0:1);' 2> /dev/null ; then
-		PHP=${PHP}5
-		AC_MSG_RESULT([$PHP])
-	      else
-		AC_MSG_RESULT([no ($PHP isn't PHP5)])
-		PHP=
-	      fi
+	      AC_MSG_RESULT([no ($PHP isn't PHP >= 8)])
+	      PHP=
 	    fi
 	  else
 	    AC_MSG_RESULT([no ($PHP does not work)])
@@ -598,14 +551,19 @@ if test no != "$with_php" ; then
 	AC_PATH_PROGS(PHP, ["$PHP"], [])
       fi
       if test x"$PHP" = x ; then
-	AC_MSG_WARN([No PHP5 interpreter found - PHP5 bindings tests will be skipped])
+	AC_MSG_WARN([No PHP interpreter found - PHP bindings tests will be skipped])
 	dnl The skiptest script just returns exit code 77.
 	PHP='$(top_srcdir)/skiptest'
       else
-	AC_MSG_CHECKING([for PHP5 path separator])
+	AC_MSG_CHECKING([for PHP path separator])
 	PHP_PATH_SEPARATOR=`$PHP -r 'echo PATH_SEPARATOR;'`
 	AC_SUBST([PHP_PATH_SEPARATOR])
 	AC_MSG_RESULT([$PHP_PATH_SEPARATOR])
+
+	AC_MSG_CHECKING([for PHP shared library suffix])
+	PHP_SHLIB_SUFFIX=`$PHP -r 'echo PHP_SHLIB_SUFFIX;'`
+	AC_SUBST([PHP_SHLIB_SUFFIX])
+	AC_MSG_RESULT([$PHP_SHLIB_SUFFIX])
       fi
 
       case $host_os in
@@ -615,7 +573,7 @@ if test no != "$with_php" ; then
 	dnl there.  FIXME.
 	PHP_LIBS="-L`$PHP_CONFIG --prefix` -lphp${PHP_MAJOR_VERSION}ts" ;;
       cygwin*)
-	PHP_LIBS="-lphp${PHP_MAJOR_VERSION}lib" ;;
+	PHP_LIBS="-lphp${PHP_MAJOR_VERSION}" ;;
       *)
 	PHP_LIBS= ;;
       esac
@@ -625,103 +583,10 @@ if test no != "$with_php" ; then
   fi
 fi
 
-if test no != "$with_php7" ; then
-  dnl See comment for AC_PATH_PROGS(SWIG, ...).
-  if test -n "$PHP_CONFIG7" ; then
-    AC_PATH_PROGS(PHP_CONFIG7, ["$PHP_CONFIG7"], [])
-  fi
-  if test -z "$PHP_CONFIG7" ; then
-    AC_PATH_PROGS(PHP_CONFIG7, [php-config7.3 php-config7.2 php-config7.1 php-config7.0 php-config], [])
-  fi
-  AC_ARG_VAR(PHP_CONFIG7, [php-config utility for PHP7])
-  AC_ARG_VAR(PHP7, [PHP7 interpreter (optional - only needed to run PHP7 testsuite with)])
-  if test -n "$PHP_CONFIG7" ; then
-    AC_MSG_CHECKING([$PHP_CONFIG7 version])
-    version=`$PHP_CONFIG7 --version 2>/dev/null`
-    case $version in
-    [[0123456].*])
-      AC_MSG_RESULT([$version (not supported, PHP7 bindings need PHP >= 7.0)])
-      if test yes = "$with_php7" ; then
-	AC_MSG_ERROR([$PHP_CONFIG7 reports version $version - PHP7 bindings need >= 7.0])
-      fi
-      with_php7=no
-      ;;
-    *)
-      AC_MSG_RESULT([$version])
-      PHP7_MAJOR_VERSION=`echo "$version"|cut -d. -f1`
-      ;;
-    esac
-    AC_SUBST(PHP7_MAJOR_VERSION)
-
-    if test no != "$with_php7" ; then
-      AC_MSG_CHECKING([for PHP7 extension directory])
-      if test -z "$PHP7_EXTENSION_DIR" ; then
-	PHP7_EXTENSION_DIR=`$PHP_CONFIG7 --extension-dir`
-      fi
-      AC_MSG_RESULT([$PHP7_EXTENSION_DIR])
-      AC_ARG_VAR(PHP7_EXTENSION_DIR, [Directory to install PHP7 extensions in])
-    fi
-
-    if test no != "$with_php7" ; then
-      PHP7_INC=`$PHP_CONFIG7 --includes`
-      AC_SUBST(PHP7_INC)
-    fi
-
-    if test no != "$with_php7" ; then
-      if test x"$PHP7" = x ; then
-	AC_MSG_CHECKING([for PHP7 interpreter])
-	dnl PHP7's php-config supports --php-binary, so just use that.
-	PHP7=`$PHP_CONFIG7 --php-binary 2>/dev/null`
-	if test x"$PHP7" != x ; then
-	  if $PHP7 -r 'exit(0);' 2> /dev/null ; then
-	    if $PHP7 -r 'exit(PHP_MAJOR_VERSION==7?0:1);' 2> /dev/null ; then
-	      AC_MSG_RESULT([$PHP7])
-	    else
-	      AC_MSG_RESULT([no ($PHP7 isn't PHP7)])
-	      PHP7=
-	    fi
-	  else
-	    AC_MSG_RESULT([no ($PHP7 does not work)])
-	    PHP7=
-	  fi
-	else
-	  AC_MSG_RESULT([not found])
-	fi
-      else
-	AC_PATH_PROGS(PHP7, ["$PHP7"], [])
-      fi
-      if test x"$PHP7" = x ; then
-	AC_MSG_WARN([No PHP7 interpreter found - PHP7 bindings tests will be skipped])
-	dnl The skiptest script just returns exit code 77.
-	PHP7='$(top_srcdir)/skiptest'
-      else
-	AC_MSG_CHECKING([for PHP7 path separator])
-	PHP7_PATH_SEPARATOR=`$PHP7 -r 'echo PATH_SEPARATOR;'`
-	AC_SUBST([PHP7_PATH_SEPARATOR])
-	AC_MSG_RESULT([$PHP7_PATH_SEPARATOR])
-      fi
-
-      case $host_os in
-      mingw* | pw32*)
-	dnl This is a bit of an informed guess, pending more information from
-	dnl someone who actually has mingw and wants to build the PHP bindings
-	dnl there.  FIXME.
-	PHP7_LIBS="-L`$PHP_CONFIG7 --prefix` -lphp${PHP7_MAJOR_VERSION}ts" ;;
-      cygwin*)
-	PHP7_LIBS="-lphp${PHP7_MAJOR_VERSION}lib" ;;
-      *)
-	PHP7_LIBS= ;;
-      esac
-      AC_SUBST(PHP7_LIBS)
-      BINDINGS="$BINDINGS php7"
-    fi
-  fi
-fi
-
 if test no != "$with_tcl" ; then
   dnl The documented minimum requirement is Tcl 8.5.  Older versions may work,
   dnl but we don't test with them regularly, and they are no longer supported
-  dnl upstream.  Also ::tcl::pckconfig was added in Tcl 8.5, which makes the
+  dnl upstream.  Also ::tcl::pkgconfig was added in Tcl 8.5, which makes the
   dnl tests below simpler and more reliable.
   dnl
   dnl If you really want to build with an older version, run configure with
@@ -741,7 +606,7 @@ if test no != "$with_tcl" ; then
 
       AC_ARG_VAR(TCL_LIB, [Directory to install Tcl files into])
       if test -z "$TCL_LIB" ; then
-	[TCL_LIB=`echo 'foreach d $tcl_pkgPath {if {![regexp {/share(/|$)} $d]} {break}};puts $d'|$TCLSH`]
+	[TCL_LIB=`echo 'if {[info exists tcl_pkgPath]} {foreach d $tcl_pkgPath {if {![regexp {/share(/|$)} $d]} {break}};puts $d}else{foreach d $auto_path {if {![regexp {/share(/|$)} $d]} {break}};puts $d}'|$TCLSH`]
       fi
       AC_SUBST(TCL_LIB)
 
@@ -778,34 +643,30 @@ if test no != "$with_tcl" ; then
 	TCLSH=
       fi
 
+      TCL_LIBS=
+      TCL_SHLIB_EXT=
       if test -n "$TCLSH" ; then
-	dnl Cygwin needs to link with -ltcl8.5 or similar.
-	TCL_LIBS=
-	case $host_os in
-	cygwin*)
-	  AC_CHECK_LIB([tcl$tcl_version], [Tcl_Init],
-		       [TCL_LIBS="-ltcl$tcl_version"],
-		       [AC_MSG_ERROR([libtcl$tcl_version not found])])
-	  ;;
-	*)
-	  dnl ::tcl::pkgconfig was added in Tcl 8.5, but prior to 8.6 it isn't
-	  dnl necessary to link against -ltclstub anyway.
-	  [tcl_libdir_runtime=`echo 'puts [::tcl::pkgconfig get libdir,runtime]'|$TCLSH 2> /dev/null`]
-	  if test -n "$tcl_libdir_runtime" ; then
-	    for x in "/tcl$tcl_version" "" ; do
-	      TCLCONFIG_SH=$tcl_libdir_runtime$x/tclConfig.sh
-	      if test -r "$TCLCONFIG_SH" ; then
-		eval "`sed 's/^TCL_STUB_LIB_SPEC=/TCL_LIBS=/p;d' $TCLCONFIG_SH`"
-		break
-	      fi
-	    done
-	  fi
-	  TCL_CPPFLAGS="$TCL_CPPFLAGS -DUSE_TCL_STUBS" ;;
-	esac
+	dnl ::tcl::pkgconfig was added in Tcl 8.5.  Prior to 8.6 it's only
+	dnl actually necessary to link against -ltclstub on platforms which
+	dnl don't allow libraries to have unresolved symbols (cygwin, mingw,
+	dnl msvc, etc)
+	[tcl_libdir_runtime=`echo 'puts [::tcl::pkgconfig get libdir,runtime]'|$TCLSH 2> /dev/null`]
+	if test -n "$tcl_libdir_runtime" ; then
+	  for x in "/tcl$tcl_version" "" ; do
+	    TCLCONFIG_SH=$tcl_libdir_runtime$x/tclConfig.sh
+	    if test -r "$TCLCONFIG_SH" ; then
+	      TCL_LIBS=`. $TCLCONFIG_SH && printf '%s' "$TCL_STUB_LIB_SPEC"`
+	      break
+	    fi
+	  done
+	fi
+	TCL_CPPFLAGS="$TCL_CPPFLAGS -DUSE_TCL_STUBS"
+	[TCL_SHLIB_EXT=`echo 'puts [info sharedlibextension]'|$TCLSH 2> /dev/null`]
       fi
 
       AC_SUBST(TCL_CPPFLAGS)
       AC_SUBST(TCL_LIBS)
+      AC_SUBST(TCL_SHLIB_EXT)
     else
       AC_MSG_RESULT([< $tcl_min (too old)])
       if test yes = "$with_tcl" ; then
@@ -975,9 +836,6 @@ if test no != "$with_java" ; then
     dnl JDK version...
     java_ok=no
     AC_CHECK_HEADER([jni.h], [java_ok=yes], [
-      dnl We need to look for jni.h in /usr/lib/jvm/java-gcj/include on some
-      dnl Debian and Ubuntu boxes at least.  And on Mac OS X, jni.h lives
-      dnl in /System/Library/Frameworks/JavaVM.framework/Headers.
       SAVE_CPPFLAGS=$CPPFLAGS
       real_javac=$JAVAC
       dnl Avoid endlessly traversing if there's a symlink loop.
@@ -988,6 +846,7 @@ if test no != "$with_java" ; then
       done
       dnl Translate ".../bin/javac" to ".../include".
       [rel_jnidir=`echo "$real_javac"|sed 's!/[^/]*/[^/]*$!/include!'`]
+      dnl Try the location for macOS system Java too, but last.
       for jnidir in \
 	  $JNI_INCLUDE_DIR \
 	  ${JAVA_HOME+"$JAVA_HOME/include"} \
@@ -1167,19 +1026,18 @@ if test no != "$with_ruby" ; then
 	dnl rdoc is included as part of the Ruby core distribution, so run it
 	dnl at build time rather shipping the rather large generated output in
 	dnl our source tarball.
-	if test -n "$RDOC" ; then
-	  AC_PATH_PROGS(RDOC, ["$RDOC"], [])
-	else
+	if test -z "$RDOC" ; then
 	  dnl Try replace the *last* 'ruby' with 'rdoc'.
 	  rdoc_best_guess=`echo "$RUBY"|sed 's,\(.*\)ruby,\1rdoc,'`
-	  AC_PATH_PROGS(RDOC, ["$rdoc_best_guess"], [])
-	  if test -z "$RDOC"; then
-	    AC_PATH_PROGS(RDOC, [rdoc], [])
+	  if test -x "$rdoc_best_guess" ; then
+	    RDOC=$rdoc_best_guess
 	  fi
 	fi
+	AC_PATH_PROGS(RDOC, [rdoc], [])
 	if test -n "$RDOC"; then
 	  BINDINGS="$BINDINGS ruby"
 	fi
+	AC_ARG_VAR([RDOC], [Ruby documentation generator])
       else
 	AC_MSG_RESULT([no (install ruby-dev or ruby-devel package or similar)])
 	if test yes = "$with_ruby" ; then
@@ -1194,7 +1052,7 @@ fi
 
 if test no != "$with_perl" ; then
   AC_PATH_PROGS(PERL, ["${PERL-perl}"], [])
-  AC_ARG_VAR(PERL, [perl interpreter])
+  AC_ARG_VAR(PERL, [Perl interpreter])
   if test -n "$PERL" ; then
     if test -z "$PERL_INC" ; then
       PERL_INC=`$PERL -MConfig -e 'print $Config{archlibexp}, "/CORE"'`
@@ -1243,30 +1101,9 @@ if test no != "$with_lua" ; then
   AC_ARG_VAR(LUA, [lua interpreter])
   if test -n "$LUA" ; then
     dnl We need Lua 5.1 or later.
-    AC_MSG_CHECKING([$LUA version])
-    lua_version=`$LUA -e 'print(_VERSION)' | cut -f 2 -d ' ' 2>&AS_MESSAGE_LOG_FD`
-
-    case $lua_version in
-    [[01234]].*|5.0|5.0.*)
-      AC_MSG_RESULT([$lua_version < 5.1 (too old)])
-      if test yes = "$with_lua" ; then
-        AC_MSG_ERROR([$LUA too old (Lua 5.1 or newer required)])
-      fi
-      LUA=
-      ;;
-    "")
-      AC_MSG_RESULT([\$LUA -e 'print(_VERSION)' | cut -f 2 -d ' ' didn't work])
-
-      if test yes = "$with_lua" ; then
-        AC_MSG_ERROR([Working Lua interpreter not found])
-      fi
-      LUA=
-      ;;
-    esac
+    PKG_CHECK_MODULES([LUA], [lua$lua_version >= 5.1], [], [LUA=])
 
     if test -n "$LUA" ; then
-      AC_MSG_RESULT([$lua_version])
-
       AC_ARG_VAR([LUA_LIB], [Directory to install compiled Lua modules into])
       AC_ARG_VAR([LUA_SO], [Extension for compiled Lua modules (e.g. LUA_SO=.so)])
       AC_MSG_CHECKING([for directory to install compiled Lua modules into])
@@ -1310,6 +1147,7 @@ if test no != "$with_lua" ; then
       fi
       if test -z "$LUA_LIB"; then
 	AC_MSG_RESULT([not found])
+	LUA=
       else
 	AC_MSG_RESULT([$LUA_LIB])
       fi
@@ -1318,36 +1156,18 @@ if test no != "$with_lua" ; then
       AC_MSG_CHECKING([for extension to use for compiled Lua modules])
       if test -z "$LUA_SO"; then
 	AC_MSG_RESULT([not found])
+	LUA=
       else
 	AC_MSG_RESULT([$LUA_SO])
       fi
       AC_SUBST([LUA_SO])
-
-      AC_MSG_CHECKING([for Lua header files])
-      AC_ARG_VAR([LUA_INC], [Directory to include for lua headers])
-      if test -z "$LUA_INC" ; then
-        dirs="/usr/include/lua$lua_version /usr/local/include/lua$lua_version"
-        for i in $dirs ; do
-          if test -r "$i/lua.h"; then
-            LUA_INC=$i
-            break
-          fi
-        done
-      fi
-
-      if test -z "$LUA_INC" ; then
-        AC_MSG_RESULT([not found])
-      else
-        AC_MSG_RESULT([$LUA_INC])
-        BINDINGS="$BINDINGS lua"
-        LUA_CPPFLAGS="-I$LUA_INC"
-      fi
-      AC_SUBST([LUA_CPPFLAGS])
     fi
-  else
-    if test yes = "$with_lua" ; then
-      AC_MSG_ERROR([lua not found])
-    fi
+  fi
+
+  if test -n "$LUA" ; then
+    BINDINGS="$BINDINGS lua"
+  elif test yes = "$with_lua" ; then
+    AC_MSG_ERROR([lua not found])
   fi
 fi
 
@@ -1425,11 +1245,11 @@ if test yes = "$GXX" ; then
 
   if test no != "$enable_visibility"; then
     dnl GCC doesn't support symbol visibility on all platforms (e.g. it isn't
-    dnl on mingw).
-    AC_MSG_CHECKING([if $CXX -fvisibility=hidden works])
-    if echo 'int bar() __attribute__((visibility("default"))); int foo() {return 42;}'|$CXX -Werror -fvisibility=hidden -c -oconftest.o -xc++ - >&AS_MESSAGE_LOG_FD 2>&AS_MESSAGE_LOG_FD ; then
+    dnl supported on mingw and visibility attributes result in warnings).
+    AC_MSG_CHECKING([if $CXX -fvisibility=hidden -fvisibility-inlines-hidden works])
+    if echo 'int bar() __attribute__((visibility("default"))); int baz() __attribute__((visibility("internal"))); int bar() { return 6; } int baz() { return 7; } int foo() {return 42;}'|$CXX -Werror -fvisibility=hidden -fvisibility-inlines-hidden -c -oconftest.o -xc++ - >&AS_MESSAGE_LOG_FD 2>&AS_MESSAGE_LOG_FD ; then
       AC_MSG_RESULT([yes])
-      SWIG_CXXFLAGS="$SWIG_CXXFLAGS -fvisibility=hidden"
+      SWIG_CXXFLAGS="$SWIG_CXXFLAGS -fvisibility=hidden -fvisibility-inlines-hidden"
     else
       AC_MSG_RESULT([no])
     fi
@@ -1450,7 +1270,6 @@ AC_CONFIG_FILES([Makefile
  python/Makefile python/docs/conf.py python/version.i
  python3/Makefile python3/docs/conf.py python3/version.i
  php/Makefile
- php7/Makefile
  java/Makefile
  tcl8/Makefile tcl8/pkgIndex.tcl
  csharp/Makefile csharp/AssemblyInfo.cs

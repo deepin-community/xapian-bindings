@@ -23,7 +23,7 @@ Upstream Authors:
 
 Copyright:
 
-  Copyright (C) 2002-2017 Olly Betts
+  Copyright (C) 2002-2023 Olly Betts
   Copyright (C) 2002,2003,2004,2005 James Aylett
   Copyright (C) 2001,2002 Ananova Ltd
   Copyright (C) 1999,2000,2001 BrightStation PLC
@@ -91,6 +91,12 @@ m4/ax_cxx_compile_stdcxx_11.m4 bears the following licence:
   Copyright (c) 2012 Zack Weinberg <zackw@panix.com>
   Copyright (c) 2013 Roy Stogner <roystgnr@ices.utexas.edu>
   Copyright (c) 2014, 2015 Google Inc.; contributed by Alexey Sokolov <sokolov@google.com>
+  Copyright (c) 2015 Paul Norman <penorman@mac.com>
+  Copyright (c) 2015 Moritz Klammler <moritz@klammler.eu>
+  Copyright (c) 2016, 2018 Krzesimir Nowak <qdlacz@gmail.com>
+  Copyright (c) 2019 Enji Cooper <yaneurabeya@gmail.com>    
+  Copyright (c) 2020 Jason Merrill <jason@redhat.com>
+  Copyright (c) 2021 Jörn Heusipp <osmanx@problemloesungsmaschine.de>
 
   Copying and distribution of this file, with or without modification, are
   permitted in any medium without royalty provided the copyright notice

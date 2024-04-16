@@ -77,7 +77,9 @@ extern "C" {
 %constant int ENQ_ASCENDING = Xapian::Enquire::ASCENDING;
 %constant int ENQ_DESCENDING = Xapian::Enquire::DESCENDING;
 %constant int ENQ_DONT_CARE = Xapian::Enquire::DONT_CARE;
+%constant int FLAG_ACCUMULATE = Xapian::QueryParser::FLAG_ACCUMULATE;
 %constant int FLAG_BOOLEAN = Xapian::QueryParser::FLAG_BOOLEAN;
+%constant int FLAG_NO_POSITIONS = Xapian::QueryParser::FLAG_NO_POSITIONS;
 %constant int FLAG_PHRASE = Xapian::QueryParser::FLAG_PHRASE;
 %constant int FLAG_LOVEHATE = Xapian::QueryParser::FLAG_LOVEHATE;
 %constant int FLAG_BOOLEAN_ANY_CASE = Xapian::QueryParser::FLAG_BOOLEAN_ANY_CASE;
@@ -88,6 +90,7 @@ extern "C" {
 %constant int FLAG_SYNONYM = Xapian::QueryParser::FLAG_SYNONYM;
 %constant int FLAG_AUTO_SYNONYMS = Xapian::QueryParser::FLAG_AUTO_SYNONYMS;
 %constant int FLAG_AUTO_MULTIWORD_SYNONYMS = Xapian::QueryParser::FLAG_AUTO_MULTIWORD_SYNONYMS;
+%constant int FLAG_NGRAMS = Xapian::QueryParser::FLAG_NGRAMS;
 %constant int FLAG_CJK_NGRAM = Xapian::QueryParser::FLAG_CJK_NGRAM;
 %constant int FLAG_DEFAULT = Xapian::QueryParser::FLAG_DEFAULT;
 %constant int STEM_NONE = Xapian::QueryParser::STEM_NONE;
@@ -96,7 +99,8 @@ extern "C" {
 %constant int STEM_ALL = Xapian::QueryParser::STEM_ALL;
 %constant int STEM_ALL_Z = Xapian::QueryParser::STEM_ALL_Z;
 %constant int FLAG_SPELLING = Xapian::TermGenerator::FLAG_SPELLING;
-// FLAG_CJK_NGRAM already set above from QueryParser (values match).
+// FLAG_NGRAMS and FLAG_CJK_NGRAM are already set above from QueryParser
+// (values match).
 %constant int WILDCARD_LIMIT_ERROR = Xapian::Query::WILDCARD_LIMIT_ERROR;
 %constant int WILDCARD_LIMIT_FIRST = Xapian::Query::WILDCARD_LIMIT_FIRST;
 %constant int WILDCARD_LIMIT_MOST_FREQUENT = Xapian::Query::WILDCARD_LIMIT_MOST_FREQUENT;
